@@ -93,7 +93,7 @@ northstar-workload-optimizer/
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/YOUR_USERNAME/northstar-workload-optimizer.git
+git clone https://github.com/tusharg007/northstar-workload-optimizer.git
 cd northstar-workload-optimizer
 
 # 2. Install dependencies
