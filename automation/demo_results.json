@@ -1,0 +1,257 @@
+[
+  {
+    "expense_id": "DEMO-001",
+    "status": "AUTO_APPROVED",
+    "validation": {
+      "is_valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "anomaly": {
+      "is_anomalous": false,
+      "confidence_score": 0.85,
+      "flags": [
+        "WEEKEND_TRANSACTION"
+      ],
+      "risk_level": "LOW"
+    },
+    "decision": {
+      "approver_role": "Direct Manager",
+      "approver_level": 1,
+      "auto_approved": true,
+      "requires_review": false,
+      "reason": "Amount: $342.50 \u2192 Direct Manager [AUTO-APPROVED]"
+    },
+    "notification": {
+      "notification_id": "NOTIF-0001",
+      "timestamp": "2026-04-26T23:43:04.300288",
+      "channel": "email",
+      "recipient": "Direct Manager",
+      "subject": "\u2705 Auto-Approved: Travel - $342.50",
+      "body": "Expense ID: DEMO-001\nSubmitted by: Sarah Chen (Sales)\nCategory: Travel\nMerchant: Marriott Hotels\nAmount: $342.50 USD\nDate: 2026-03-15\nReceipt: Attached\n\nRouting: Amount: $342.50 \u2192 Direct Manager [AUTO-APPROVED]\n\nAnomaly Flags:\n  - WEEKEND_TRANSACTION",
+      "priority": "low",
+      "action_required": false,
+      "expense_summary": {
+        "expense_id": "DEMO-001",
+        "employee": "Sarah Chen",
+        "department": "Sales",
+        "amount": 342.5,
+        "category": "Travel",
+        "risk_level": "LOW",
+        "auto_approved": true
+      },
+      "metadata": {
+        "validation_status": "PASS",
+        "anomaly_detected": false,
+        "confidence_score": 0.85,
+        "approver_level": 1
+      }
+    }
+  },
+  {
+    "expense_id": "DEMO-002",
+    "status": "PENDING_APPROVAL",
+    "validation": {
+      "is_valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "anomaly": {
+      "is_anomalous": true,
+      "confidence_score": 0.7,
+      "flags": [
+        "STATISTICAL_OUTLIER (z=8.38)"
+      ],
+      "risk_level": "MEDIUM"
+    },
+    "decision": {
+      "approver_role": "Department Head",
+      "approver_level": 2,
+      "auto_approved": false,
+      "requires_review": true,
+      "reason": "Amount: $1850.00 \u2192 Department Head [ESCALATED: MEDIUM risk]"
+    },
+    "notification": {
+      "notification_id": "NOTIF-0002",
+      "timestamp": "2026-04-26T23:43:04.300794",
+      "channel": "teams",
+      "recipient": "Department Head",
+      "subject": "\u26a0\ufe0f Review Required: Client Entertainment - $1850.00 [MEDIUM]",
+      "body": "Expense ID: DEMO-002\nSubmitted by: James Rodriguez (Marketing)\nCategory: Client Entertainment\nMerchant: The Capital Grille\nAmount: $1850.00 USD\nDate: 2026-03-16\nReceipt: Attached\n\nRouting: Amount: $1850.00 \u2192 Department Head [ESCALATED: MEDIUM risk]\n\nAnomaly Flags:\n  - STATISTICAL_OUTLIER (z=8.38)",
+      "priority": "normal",
+      "action_required": true,
+      "expense_summary": {
+        "expense_id": "DEMO-002",
+        "employee": "James Rodriguez",
+        "department": "Marketing",
+        "amount": 1850.0,
+        "category": "Client Entertainment",
+        "risk_level": "MEDIUM",
+        "auto_approved": false
+      },
+      "metadata": {
+        "validation_status": "PASS",
+        "anomaly_detected": true,
+        "confidence_score": 0.7,
+        "approver_level": 2
+      }
+    }
+  },
+  {
+    "expense_id": "DEMO-003",
+    "status": "ESCALATED",
+    "validation": {
+      "is_valid": true,
+      "errors": [],
+      "warnings": [
+        "Receipt required for expenses > $75 (amount: $4500.00)"
+      ]
+    },
+    "anomaly": {
+      "is_anomalous": true,
+      "confidence_score": 0.1,
+      "flags": [
+        "STATISTICAL_OUTLIER (z=8.40)",
+        "SUSPICIOUS_ROUND_AMOUNT ($4500)",
+        "MISSING_RECEIPT_HIGH_VALUE ($4500.00)",
+        "POTENTIAL_DUPLICATE"
+      ],
+      "risk_level": "CRITICAL"
+    },
+    "decision": {
+      "approver_role": "Finance Director + Compliance",
+      "approver_level": 3,
+      "auto_approved": false,
+      "requires_review": true,
+      "reason": "Amount: $4500.00 \u2192 Finance Director + Compliance [ESCALATED: CRITICAL risk]"
+    },
+    "notification": {
+      "notification_id": "NOTIF-0003",
+      "timestamp": "2026-04-26T23:43:04.301205",
+      "channel": "both",
+      "recipient": "Finance Director + Compliance",
+      "subject": "\u26a0\ufe0f Review Required: Equipment - $4500.00 [CRITICAL]",
+      "body": "Expense ID: DEMO-003\nSubmitted by: Emily Watson (IT)\nCategory: Equipment\nMerchant: Amazon Business\nAmount: $4500.00 USD\nDate: 2026-03-17\nReceipt: Missing\n\nRouting: Amount: $4500.00 \u2192 Finance Director + Compliance [ESCALATED: CRITICAL risk]\n\nWarnings:\n  - Receipt required for expenses > $75 (amount: $4500.00)\n\nAnomaly Flags:\n  - STATISTICAL_OUTLIER (z=8.40)\n  - SUSPICIOUS_ROUND_AMOUNT ($4500)\n  - MISSING_RECEIPT_HIGH_VALUE ($4500.00)\n  - POTENTIAL_DUPLICATE",
+      "priority": "urgent",
+      "action_required": true,
+      "expense_summary": {
+        "expense_id": "DEMO-003",
+        "employee": "Emily Watson",
+        "department": "IT",
+        "amount": 4500.0,
+        "category": "Equipment",
+        "risk_level": "CRITICAL",
+        "auto_approved": false
+      },
+      "metadata": {
+        "validation_status": "PASS",
+        "anomaly_detected": true,
+        "confidence_score": 0.1,
+        "approver_level": 3
+      }
+    }
+  },
+  {
+    "expense_id": "DEMO-004",
+    "status": "AUTO_APPROVED",
+    "validation": {
+      "is_valid": true,
+      "errors": [],
+      "warnings": []
+    },
+    "anomaly": {
+      "is_anomalous": false,
+      "confidence_score": 1.0,
+      "flags": [],
+      "risk_level": "LOW"
+    },
+    "decision": {
+      "approver_role": "Direct Manager",
+      "approver_level": 1,
+      "auto_approved": true,
+      "requires_review": false,
+      "reason": "Amount: $28.50 \u2192 Direct Manager [AUTO-APPROVED]"
+    },
+    "notification": {
+      "notification_id": "NOTIF-0004",
+      "timestamp": "2026-04-26T23:43:04.301600",
+      "channel": "email",
+      "recipient": "Direct Manager",
+      "subject": "\u2705 Auto-Approved: Meals & Entertainment - $28.50",
+      "body": "Expense ID: DEMO-004\nSubmitted by: Michael Park (Finance)\nCategory: Meals & Entertainment\nMerchant: Starbucks\nAmount: $28.50 USD\nDate: 2026-03-18\nReceipt: Attached\n\nRouting: Amount: $28.50 \u2192 Direct Manager [AUTO-APPROVED]",
+      "priority": "low",
+      "action_required": false,
+      "expense_summary": {
+        "expense_id": "DEMO-004",
+        "employee": "Michael Park",
+        "department": "Finance",
+        "amount": 28.5,
+        "category": "Meals & Entertainment",
+        "risk_level": "LOW",
+        "auto_approved": true
+      },
+      "metadata": {
+        "validation_status": "PASS",
+        "anomaly_detected": false,
+        "confidence_score": 1.0,
+        "approver_level": 1
+      }
+    }
+  },
+  {
+    "expense_id": "DEMO-005",
+    "status": "ESCALATED",
+    "validation": {
+      "is_valid": true,
+      "errors": [],
+      "warnings": [
+        "Amount $3000.00 exceeds category limit $1000.00 for 'Miscellaneous'",
+        "Receipt required for expenses > $75 (amount: $3000.00)",
+        "Detailed description required for expenses > $500"
+      ]
+    },
+    "anomaly": {
+      "is_anomalous": true,
+      "confidence_score": 0.1,
+      "flags": [
+        "STATISTICAL_OUTLIER (z=49.20)",
+        "WEEKEND_TRANSACTION",
+        "SUSPICIOUS_ROUND_AMOUNT ($3000)",
+        "MISSING_RECEIPT_HIGH_VALUE ($3000.00)"
+      ],
+      "risk_level": "CRITICAL"
+    },
+    "decision": {
+      "approver_role": "Finance Director + Compliance",
+      "approver_level": 3,
+      "auto_approved": false,
+      "requires_review": true,
+      "reason": "Amount: $3000.00 \u2192 Finance Director + Compliance [ESCALATED: CRITICAL risk]"
+    },
+    "notification": {
+      "notification_id": "NOTIF-0005",
+      "timestamp": "2026-04-26T23:43:04.301977",
+      "channel": "both",
+      "recipient": "Finance Director + Compliance",
+      "subject": "\u26a0\ufe0f Review Required: Miscellaneous - $3000.00 [CRITICAL]",
+      "body": "Expense ID: DEMO-005\nSubmitted by: Lisa Thompson (HR)\nCategory: Miscellaneous\nMerchant: Unknown Vendor\nAmount: $3000.00 USD\nDate: 2026-03-22\nReceipt: Missing\n\nRouting: Amount: $3000.00 \u2192 Finance Director + Compliance [ESCALATED: CRITICAL risk]\n\nWarnings:\n  - Amount $3000.00 exceeds category limit $1000.00 for 'Miscellaneous'\n  - Receipt required for expenses > $75 (amount: $3000.00)\n  - Detailed description required for expenses > $500\n\nAnomaly Flags:\n  - STATISTICAL_OUTLIER (z=49.20)\n  - WEEKEND_TRANSACTION\n  - SUSPICIOUS_ROUND_AMOUNT ($3000)\n  - MISSING_RECEIPT_HIGH_VALUE ($3000.00)",
+      "priority": "urgent",
+      "action_required": true,
+      "expense_summary": {
+        "expense_id": "DEMO-005",
+        "employee": "Lisa Thompson",
+        "department": "HR",
+        "amount": 3000.0,
+        "category": "Miscellaneous",
+        "risk_level": "CRITICAL",
+        "auto_approved": false
+      },
+      "metadata": {
+        "validation_status": "PASS",
+        "anomaly_detected": true,
+        "confidence_score": 0.1,
+        "approver_level": 3
+      }
+    }
+  }
+]

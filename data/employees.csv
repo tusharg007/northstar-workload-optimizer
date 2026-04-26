@@ -1,0 +1,121 @@
+employee_id,employee_name,department,email,hire_date,manager_name
+EMP-1001,Allison Hill,Finance,allison.hill@northstar.com,2020-03-19,Brian Yang
+EMP-1002,Leslie Johnson,Sales,leslie.johnson@northstar.com,2019-02-11,Jonathan Johnson
+EMP-1003,Matthew Gardner,IT,matthew.gardner@northstar.com,2020-03-10,Donald Booth
+EMP-1004,Caitlin Henderson,Sales,caitlin.henderson@northstar.com,2020-09-05,Tyler Rogers
+EMP-1005,Brent Abbott,Finance,brent.abbott@northstar.com,2023-06-14,Andrew Stevens
+EMP-1006,Thomas Miller,Finance,thomas.miller@northstar.com,2020-10-22,Lisa Hensley
+EMP-1007,Michele Williams,HR,michele.williams@northstar.com,2020-04-03,Victoria Wyatt
+EMP-1008,Jamie Chavez,Sales,jamie.chavez@northstar.com,2025-05-30,Jacob Clark
+EMP-1009,Timothy Wong,IT,timothy.wong@northstar.com,2023-07-01,Kimberly Sanchez
+EMP-1010,Devin Schaefer,Sales,devin.schaefer@northstar.com,2024-03-03,Melinda Cameron
+EMP-1011,Crystal Johnson,Sales,crystal.johnson@northstar.com,2020-12-31,Austin Gentry
+EMP-1012,Michelle Lewis,Marketing,michelle.lewis@northstar.com,2022-07-25,Thomas Ellis
+EMP-1013,David Hoffman,Sales,david.hoffman@northstar.com,2020-07-20,Jessica Silva
+EMP-1014,Zachary Taylor,Sales,zachary.taylor@northstar.com,2022-07-07,Anthony Rodriguez
+EMP-1015,Rebecca Henderson,Finance,rebecca.henderson@northstar.com,2018-11-09,Kyle Mcdonald
+EMP-1016,Juan Dunlap,Marketing,juan.dunlap@northstar.com,2024-02-07,Melanie Herrera
+EMP-1017,Martin Rodriguez,Sales,martin.rodriguez@northstar.com,2022-01-05,Aaron Bowen
+EMP-1018,Valerie Gill,Marketing,valerie.gill@northstar.com,2022-08-20,Sheila Evans
+EMP-1019,Lisa Hernandez,HR,lisa.hernandez@northstar.com,2024-10-20,Troy Nielsen
+EMP-1020,Linda Burns,Sales,linda.burns@northstar.com,2019-04-08,Sherry Decker
+EMP-1021,Anthony Humphrey,HR,anthony.humphrey@northstar.com,2018-12-26,John Jones
+EMP-1022,Pamela Anderson,Finance,pamela.anderson@northstar.com,2022-05-11,Carmen Rose
+EMP-1023,Tracey Hickman,IT,tracey.hickman@northstar.com,2024-09-27,Christina Collins
+EMP-1024,Marie Kim DDS,Sales,marie.kim.dds@northstar.com,2019-05-06,Austin Smith
+EMP-1025,Leah Smith,Operations,leah.smith@northstar.com,2024-05-03,Crystal Whitehead
+EMP-1026,Andrea Young,IT,andrea.young@northstar.com,2024-01-03,Mr. Nathaniel Khan
+EMP-1027,Dana Kennedy,Sales,dana.kennedy@northstar.com,2021-10-11,Brent Jordan
+EMP-1028,John Daniel,Sales,john.daniel@northstar.com,2024-01-17,Maria Brown
+EMP-1029,Rebecca Rodriguez,HR,rebecca.rodriguez@northstar.com,2019-12-12,Jerry Henderson
+EMP-1030,David Leblanc,Marketing,david.leblanc@northstar.com,2022-01-31,Savannah Garcia
+EMP-1031,Kimberly Smith,HR,kimberly.smith@northstar.com,2019-02-09,Sarah Martin
+EMP-1032,Mr. James Brown,Finance,mr..james.brown@northstar.com,2021-07-16,James House
+EMP-1033,Dominique Horton,Marketing,dominique.horton@northstar.com,2024-07-12,Kristi Higgins MD
+EMP-1034,Wayne Riley,Operations,wayne.riley@northstar.com,2022-12-05,Erik Williams
+EMP-1035,Thomas Schmidt,IT,thomas.schmidt@northstar.com,2018-10-19,Angela Lopez
+EMP-1036,Megan Young,Marketing,megan.young@northstar.com,2019-05-03,Laura Riley
+EMP-1037,Bradley Sandoval,HR,bradley.sandoval@northstar.com,2023-02-15,Taylor Harris
+EMP-1038,Cynthia Foster,Marketing,cynthia.foster@northstar.com,2024-01-11,Joyce Hickman
+EMP-1039,Alexandra Howell,HR,alexandra.howell@northstar.com,2023-02-08,Angel Lewis MD
+EMP-1040,Shirley Suarez,Marketing,shirley.suarez@northstar.com,2021-06-17,Jeffrey Daniels
+EMP-1041,William Roman,Finance,william.roman@northstar.com,2022-10-25,Robert Evans
+EMP-1042,Teresa Taylor,Sales,teresa.taylor@northstar.com,2019-04-19,Natalie Moore
+EMP-1043,Daniel Cooper,Sales,daniel.cooper@northstar.com,2024-02-29,Deborah Freeman
+EMP-1044,Sarah Davis,IT,sarah.davis@northstar.com,2021-12-02,Amanda Cook
+EMP-1045,William Martin,Sales,william.martin@northstar.com,2022-01-27,Jessica Smith
+EMP-1046,Stephen Mckee,Sales,stephen.mckee@northstar.com,2022-12-16,Jacob Tran
+EMP-1047,Andrew Diaz,Sales,andrew.diaz@northstar.com,2026-04-03,Shannon Nolan
+EMP-1048,David Garcia,IT,david.garcia@northstar.com,2024-12-13,Shelly Dickson
+EMP-1049,Tammy Young,Finance,tammy.young@northstar.com,2019-09-12,Rita Keith
+EMP-1050,Norman Cook,IT,norman.cook@northstar.com,2026-03-26,Michael Moss
+EMP-1051,Christopher Haynes,IT,christopher.haynes@northstar.com,2021-07-27,Shannon Walker
+EMP-1052,Julia Torres,Sales,julia.torres@northstar.com,2025-01-30,Courtney Keller
+EMP-1053,Donald Jones,IT,donald.jones@northstar.com,2024-11-22,Martin Ross
+EMP-1054,Ms. Teresa Wilson,Operations,ms..teresa.wilson@northstar.com,2020-07-15,Victor Baker
+EMP-1055,Jeffrey Chandler,Finance,jeffrey.chandler@northstar.com,2020-12-25,William Wilson
+EMP-1056,Cheryl Williams,Marketing,cheryl.williams@northstar.com,2022-01-09,Timothy Ryan
+EMP-1057,Natalie Lambert,Sales,natalie.lambert@northstar.com,2021-05-31,Travis Mccall
+EMP-1058,Mary Martinez,Finance,mary.martinez@northstar.com,2025-12-21,Eric Ortiz
+EMP-1059,Edward Martinez,Sales,edward.martinez@northstar.com,2021-11-22,Jamie Adkins
+EMP-1060,Keith Sullivan,IT,keith.sullivan@northstar.com,2025-05-29,Dustin Jordan
+EMP-1061,Mary Marshall,Operations,mary.marshall@northstar.com,2022-01-28,Kayla Leon
+EMP-1062,Nancy Hopkins,Finance,nancy.hopkins@northstar.com,2020-09-23,Mackenzie Rogers
+EMP-1063,Nicole Chambers,Marketing,nicole.chambers@northstar.com,2020-03-23,Brittany Williams
+EMP-1064,Miss Patricia Gibson,Finance,miss.patricia.gibson@northstar.com,2025-11-08,Cheyenne Horton
+EMP-1065,David Douglas Jr.,HR,david.douglas.jr.@northstar.com,2024-09-14,Stacey Osborne
+EMP-1066,Robert Dominguez,Finance,robert.dominguez@northstar.com,2022-04-08,David Charles
+EMP-1067,Robert Contreras,Sales,robert.contreras@northstar.com,2023-01-26,Tiffany Vance
+EMP-1068,Michelle Wagner,Sales,michelle.wagner@northstar.com,2025-05-19,Jill Moore
+EMP-1069,Joanna Walton,IT,joanna.walton@northstar.com,2025-06-17,Pamela Boyd
+EMP-1070,Denise Jones,IT,denise.jones@northstar.com,2020-09-29,George Orozco
+EMP-1071,Chris Reyes,Sales,chris.reyes@northstar.com,2019-08-13,Amy Russell
+EMP-1072,Jennifer Clark,Operations,jennifer.clark@northstar.com,2021-11-21,Randy Shah
+EMP-1073,Spencer Johnston,HR,spencer.johnston@northstar.com,2022-05-16,Guy Molina
+EMP-1074,Tiffany Barnes,IT,tiffany.barnes@northstar.com,2024-09-03,Rebecca Hurst
+EMP-1075,Don Tucker MD,Finance,don.tucker.md@northstar.com,2024-01-03,Jennifer Martin
+EMP-1076,Cameron Dean,IT,cameron.dean@northstar.com,2018-07-18,Leslie Alvarado
+EMP-1077,Jeffrey Camacho,Operations,jeffrey.camacho@northstar.com,2019-11-11,James Lewis
+EMP-1078,Philip Gray,Marketing,philip.gray@northstar.com,2024-09-17,Jennifer Conley
+EMP-1079,Paul Williams,IT,paul.williams@northstar.com,2021-04-17,Barry Bernard
+EMP-1080,Andre Wright,Sales,andre.wright@northstar.com,2025-06-15,Christian Martinez
+EMP-1081,Kristy Robinson,Marketing,kristy.robinson@northstar.com,2024-04-07,Jacob Obrien
+EMP-1082,Michelle Strickland,IT,michelle.strickland@northstar.com,2019-09-16,Ashley Johnson
+EMP-1083,Michael Rubio,Marketing,michael.rubio@northstar.com,2021-09-09,Christina Vargas
+EMP-1084,Dana Terry,HR,dana.terry@northstar.com,2020-11-17,Lindsay Martinez
+EMP-1085,Dr. Hannah Patterson,IT,dr..hannah.patterson@northstar.com,2021-06-20,Matthew Smith
+EMP-1086,John Hamilton,Sales,john.hamilton@northstar.com,2021-05-25,Sandra Zimmerman
+EMP-1087,Nicholas Sheppard,Operations,nicholas.sheppard@northstar.com,2020-08-12,Tamara Hampton
+EMP-1088,Roger Vargas,Marketing,roger.vargas@northstar.com,2021-01-21,Sandra Miller
+EMP-1089,Dana Marshall,Sales,dana.marshall@northstar.com,2023-07-05,Gabrielle Snyder
+EMP-1090,John Kelly,Sales,john.kelly@northstar.com,2020-07-06,Spencer Haynes
+EMP-1091,Adam Vaughan,Sales,adam.vaughan@northstar.com,2019-01-16,Jason Peters
+EMP-1092,John Joseph,Marketing,john.joseph@northstar.com,2022-02-16,Anna Walker
+EMP-1093,Elizabeth Perkins,HR,elizabeth.perkins@northstar.com,2022-05-05,Hailey Barajas
+EMP-1094,Heather Chavez,IT,heather.chavez@northstar.com,2020-12-03,Bryan Lee
+EMP-1095,Joshua Gill,Sales,joshua.gill@northstar.com,2019-11-22,Parker Hill
+EMP-1096,Paige Carlson,IT,paige.carlson@northstar.com,2019-03-04,Elizabeth Ward
+EMP-1097,Michael Martinez,Operations,michael.martinez@northstar.com,2018-09-14,Kristen Terry
+EMP-1098,Sean Henry,Marketing,sean.henry@northstar.com,2025-09-27,Duane Mendoza
+EMP-1099,Vincent King,Operations,vincent.king@northstar.com,2025-08-24,Rodney Morales
+EMP-1100,Mark Brown,HR,mark.brown@northstar.com,2019-08-02,Tiffany Miller
+EMP-1101,Justin Butler,Sales,justin.butler@northstar.com,2023-05-22,Courtney Mills
+EMP-1102,Jeremy Dalton,Finance,jeremy.dalton@northstar.com,2021-12-18,Marc Lynch
+EMP-1103,Theresa Clark,Finance,theresa.clark@northstar.com,2020-02-10,Brad Allen
+EMP-1104,Brooke Ortiz,Marketing,brooke.ortiz@northstar.com,2024-03-06,Doris Hall
+EMP-1105,Michele Gibson,IT,michele.gibson@northstar.com,2024-02-29,Dennis Moody
+EMP-1106,Regina Gonzalez,Finance,regina.gonzalez@northstar.com,2019-04-17,Maria Kerr
+EMP-1107,Andrea Martin,Sales,andrea.martin@northstar.com,2020-12-06,Samantha Morse
+EMP-1108,John Torres,IT,john.torres@northstar.com,2021-09-27,Kathryn Snyder
+EMP-1109,Andrew Reynolds,Marketing,andrew.reynolds@northstar.com,2021-01-21,Allison Perez
+EMP-1110,Shannon Matthews,Operations,shannon.matthews@northstar.com,2018-06-29,Miss Debra Williams PhD
+EMP-1111,Matthew Moon,HR,matthew.moon@northstar.com,2019-11-10,Jessica Olsen DVM
+EMP-1112,Jason Morris,IT,jason.morris@northstar.com,2019-03-16,Erin Steele
+EMP-1113,Tony Cervantes,Marketing,tony.cervantes@northstar.com,2022-12-30,Brandon King
+EMP-1114,Raymond Hancock,Sales,raymond.hancock@northstar.com,2025-05-01,Mary Daniels MD
+EMP-1115,Isaiah Avila,Operations,isaiah.avila@northstar.com,2023-08-21,Anthony Adams
+EMP-1116,Dwayne Gilmore,HR,dwayne.gilmore@northstar.com,2022-06-09,William Lynch
+EMP-1117,Christopher Pierce,IT,christopher.pierce@northstar.com,2023-01-05,Danny Skinner
+EMP-1118,Travis Holland,Finance,travis.holland@northstar.com,2019-08-17,Dr. Jordan Hill PhD
+EMP-1119,Mrs. Kristen Reyes,Marketing,mrs..kristen.reyes@northstar.com,2026-02-27,Nicole Taylor
+EMP-1120,Raymond Dickerson,Sales,raymond.dickerson@northstar.com,2021-03-16,Katie Hoover
