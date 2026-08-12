@@ -1,7 +1,6 @@
 # North Star v2 Implementation Plan
 
-Status: **PLANNED FOR V2 — PLAN ONLY**. No item in this document is implemented
-by Gate 0.
+Status: **GATE 1 IMPLEMENTED; GATES 2–9 REMAIN PLAN ONLY**.
 
 The current working baseline remains the compatibility reference. Each gate is
 intended to be independently reviewable, testable, and reversible before the
@@ -41,7 +40,7 @@ Optional interface gates G7 and G8 may be deferred without changing the
 operational core. Every gate begins only after the preceding required gate's
 acceptance criteria pass.
 
-## G1 — PostgreSQL foundation
+## G1 — PostgreSQL foundation — IMPLEMENTED
 
 **Purpose.** Make PostgreSQL the durable operational source of truth while
 preserving current API behavior. Introduce SQLAlchemy 2.x repositories and

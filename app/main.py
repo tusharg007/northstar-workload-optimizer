@@ -4,12 +4,18 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Literal
+from typing import Annotated, Literal
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, Header, HTTPException, Query, Response
 from pydantic import BaseModel, Field
 
 from automation.automation_flow import AutomationPipeline, ExpenseSubmission
+from app.db.repositories import (
+    DecisionConflictError,
+    ExpenseConflictError,
+    IdempotencyConflictError,
+)
+from app.db.session import DEFAULT_DATABASE_URL
 from app.runtime_store import RuntimeStore
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
@@ -49,7 +55,7 @@ def _status_message(status: str, approver_role: str | None) -> str:
 
 def create_app(db_path: str | Path | None = None) -> FastAPI:
     """Create an API instance; tests can inject an isolated database path."""
-    resolved_db = db_path or os.getenv("NORTHSTAR_RUNTIME_DB", str(DEFAULT_RUNTIME_DB))
+    resolved_db = db_path or os.getenv("NORTHSTAR_DATABASE_URL", DEFAULT_DATABASE_URL)
     store = RuntimeStore(resolved_db)
     application = FastAPI(title="North Star Expense Service", version="2.0.0")
     application.state.store = store
@@ -59,20 +65,35 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
         return {"status": "ok", "service": "northstar"}
 
     @application.post("/api/expenses/process")
-    def process_expense(expense: ExpenseSubmission) -> dict:
+    def process_expense(
+        expense: ExpenseSubmission,
+        response: Response,
+        idempotency_key: Annotated[
+            str | None,
+            Header(alias="Idempotency-Key", min_length=1, max_length=255),
+        ] = None,
+        correlation_id: Annotated[
+            str | None,
+            Header(
+                alias="X-Correlation-ID",
+                min_length=1,
+                max_length=128,
+                pattern=r"^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+            ),
+        ] = None,
+    ) -> dict:
         payload = expense.model_dump()
-        result = AutomationPipeline().process_single(payload)
-        anomaly = result.get("anomaly") or {}
-        decision = result.get("decision") or {}
-        state = store.upsert(
-            expense_id=expense.expense_id,
-            input_payload=payload,
-            result=result,
-            status=result["status"],
-            risk_level=anomaly.get("risk_level"),
-            approver_role=decision.get("approver_role"),
-        )
-        return _public_state(state)
+        try:
+            outcome = store.process(
+                payload,
+                AutomationPipeline().process_single,
+                idempotency_key=idempotency_key,
+                correlation_id=correlation_id,
+            )
+        except (IdempotencyConflictError, ExpenseConflictError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        response.headers["X-Correlation-ID"] = outcome.correlation_id
+        return _public_state(outcome.state)
 
     @application.get("/api/expenses/{expense_id}/explanation")
     def explain_expense(expense_id: str) -> dict:
@@ -106,12 +127,15 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
 
     @application.post("/api/expenses/{expense_id}/decision")
     def decide_expense(expense_id: str, body: DecisionRequest) -> dict:
-        state = store.update_decision(
-            expense_id=expense_id,
-            decision=body.decision,
-            approver=body.approver,
-            comment=body.comment,
-        )
+        try:
+            state = store.update_decision(
+                expense_id=expense_id,
+                decision=body.decision,
+                approver=body.approver,
+                comment=body.comment,
+            )
+        except DecisionConflictError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
         if state is None:
             raise HTTPException(status_code=404, detail="Expense not found")
         return _public_state(state)
@@ -120,4 +144,3 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
 
 
 app = create_app()
-

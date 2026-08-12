@@ -28,11 +28,23 @@ Docker is not required.
 ## 2. Start FastAPI (Terminal 1)
 
 ```powershell
+$env:NORTHSTAR_DATABASE_URL="sqlite:///data/northstar_runtime.db"
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000
 ```
 
-The runtime database is created automatically at `data/northstar_runtime.db`
-and is never deleted on startup.
+The SQLAlchemy operational schema is created automatically for the SQLite
+fallback at `data/northstar_runtime.db` and is never deleted on startup. Existing
+Gate 0 `runtime_expenses` rows are copied once into the new tables while the
+legacy source table remains intact. PostgreSQL deployments should run Alembic
+before starting FastAPI.
+
+To use local PostgreSQL instead:
+
+```powershell
+$env:NORTHSTAR_DATABASE_URL="postgresql+psycopg://northstar:northstar@localhost:5432/northstar"
+.\.venv\Scripts\python.exe -m alembic upgrade head
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000
+```
 
 ## 3. Start and Configure n8n (Terminal 2)
 

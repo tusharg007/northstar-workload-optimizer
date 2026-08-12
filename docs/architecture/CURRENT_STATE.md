@@ -1,6 +1,6 @@
 # North Star Current Architecture Baseline
 
-Status: **CURRENT IMPLEMENTED** as audited for Gate 0 on 2026-08-12.
+Status: **CURRENT IMPLEMENTED** after Gate 1.5 verification on 2026-08-12.
 
 This document records the system that exists today. It is not the target v2
 architecture. Items under **PLANNED FOR V2** are boundaries only; the detailed
@@ -15,7 +15,8 @@ flowchart LR
     N8N["n8n on :5678\nworkflow orchestration"]
     API["FastAPI on :8000\nHTTP boundary"]
     Domain["AutomationPipeline\ndeterministic validation, anomaly scoring, routing"]
-    Runtime[("northstar_runtime.db\noperational demo state")]
+    Repository["SQLAlchemy repositories\ntransaction + idempotency boundary"]
+    Runtime[("PostgreSQL target / SQLite fallback\noperational state")]
     ETL["ETL / analytics pipeline"]
     Analytics[("northstar.db\nanalytical data")]
     Assets["CSV, notebooks, dashboard, proposal, diagrams"]
@@ -26,7 +27,8 @@ flowchart LR
     MCP -->|read / explain| API
     N8N --> API
     API --> Domain
-    API --> Runtime
+    API --> Repository
+    Repository --> Runtime
     ETL --> Analytics
     Assets --> ETL
     Analytics -. no runtime application dependency .- Runtime
@@ -43,8 +45,8 @@ flowchart LR
 4. `AutomationPipeline.process_single()` performs deterministic validation,
    anomaly detection, risk classification, approval routing, and notification
    payload construction.
-5. FastAPI upserts the input and complete pipeline result into
-   `northstar_runtime.db`.
+5. The repository atomically writes the materialized expense, workflow run,
+   ordered events, and pending approval task when required.
 6. n8n branches on the returned status and responds to the original webhook.
 
 The Python class is historically named `AutomationPipeline`, but its current
@@ -58,8 +60,9 @@ workflow orchestration and webhook lifecycle.
 2. The Webhook node exposes that payload under `$json.body`.
 3. The HTTP Request node posts `{decision, approver, comment}` to
    `http://127.0.0.1:8000/api/expenses/{expense_id}/decision`.
-4. FastAPI permits only `approve` or `reject`, updates the stored record, and
-   returns the full public state. The status becomes `APPROVED` or `REJECTED`.
+4. FastAPI permits only `approve` or `reject`; one repository transaction writes
+   immutable decision history, task state, materialized expense state, and an
+   audit event. The status becomes `APPROVED` or `REJECTED`.
 5. n8n returns that response to the caller.
 
 ## FastAPI contract
@@ -70,7 +73,7 @@ Application factory: `app.main:create_app`. Uvicorn entry point:
 | Method and path | Request | Current response |
 |---|---|---|
 | `GET /health` | None | Exactly `{"status":"ok","service":"northstar"}` |
-| `POST /api/expenses/process` | `ExpenseSubmission` | Persisted public expense state |
+| `POST /api/expenses/process` | `ExpenseSubmission`; optional `Idempotency-Key`, `X-Correlation-ID` headers | Persisted public expense state; `X-Correlation-ID` response header |
 | `GET /api/expenses` | Optional exact `status` query | Newest-first list of public expense states |
 | `GET /api/expenses/{expense_id}` | Path ID | Public expense state, or 404 |
 | `GET /api/expenses/{expense_id}/explanation` | Path ID | Deterministic risk/routing explanation, or 404 |
@@ -104,35 +107,33 @@ The explanation response contains `expense_id`, `status`, `risk_level`,
 
 ## Operational persistence
 
-FastAPI exclusively owns the current operational demo store. The default is
-`data/northstar_runtime.db`; `NORTHSTAR_RUNTIME_DB` may override it. Tests inject
-temporary paths. Startup creates the parent directory, table, and index when
-absent and does not delete the database.
+FastAPI owns operational state through synchronous SQLAlchemy 2.x repositories.
+`NORTHSTAR_DATABASE_URL` selects the backend. PostgreSQL through psycopg 3 is the
+target durable source of truth; the compatibility default is
+`sqlite:///data/northstar_runtime.db`. Tests inject disposable SQLite URLs.
 
-```sql
-CREATE TABLE runtime_expenses (
-    expense_id TEXT PRIMARY KEY,
-    input_payload TEXT NOT NULL,
-    result TEXT NOT NULL,
-    status TEXT NOT NULL,
-    risk_level TEXT,
-    approver_role TEXT,
-    decision TEXT,
-    decided_by TEXT,
-    decision_comment TEXT,
-    decided_at TEXT,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
-);
-CREATE INDEX idx_runtime_status ON runtime_expenses(status);
-```
+Alembic revision `20260812_0001` creates five tables: `expenses`,
+`workflow_runs`, `workflow_events`, `approval_tasks`, and
+`approval_decisions`. JSON uses JSONB on PostgreSQL and JSON on SQLite. Money is
+`Numeric(18,2)`. Application timestamps are normalized to aware UTC values.
 
-Input and result objects are JSON-encoded in SQLite and decoded on reads.
-Reprocessing an existing `expense_id` refreshes its pipeline state and clears
-earlier decision metadata. The SQLite connection timeout is five seconds.
+Processing atomically persists the materialized expense, one workflow run,
+ordered audit events, and a pending approval task. Approval atomically persists
+immutable decision history, task state, current expense state, run state, and an
+event. The domain pipeline has no SQLAlchemy dependency and routes contain no
+queries.
 
-At audit time the ignored local runtime database existed and held three demo or
-smoke records. It is mutable local state, not a seed or migration artifact.
+Idempotency is enforced using an optional client key or a derived key based on
+source, expense ID, and canonical SHA-256 payload hash. Exact replay returns the
+existing state without resetting decisions or duplicating runs/tasks. Reused
+keys or expense IDs with different payloads return HTTP 409. Optional bounded
+correlation IDs are persisted and echoed in response headers; UUIDs are
+generated when absent.
+
+An existing Gate 0 `runtime_expenses` table is preserved and copied
+idempotently into the new schema for the default SQLite fallback. The standalone
+legacy migration command is dry-run by default, reads its source in read-only
+mode, and requires `--write` plus a separate target to change anything.
 
 ## Analytical persistence and isolation
 
@@ -218,28 +219,29 @@ state, and exits nonzero with a clear service/HTTP/timeout error on failure.
 
 - Local endpoints have no authentication or authorization; approver identity is
   recorded but not verified.
-- SQLite is single-machine demo persistence and is not a multi-worker
-  operational database.
-- Reprocessing the same expense resets decision fields and has no explicit
-  idempotency or workflow correlation contract.
-- There are no migrations, retry ledger, dead-letter path, SLA timers, or
-  transactional workflow outbox.
+- SQLite remains single-machine compatibility persistence. PostgreSQL 16.14 was
+  runtime-verified with migrations, concurrency, rollback, legacy import, real
+  HTTP processing/approval, and restart persistence in a disposable container.
+- Materially changed reprocessing is deliberately rejected; no explicit future
+  reprocessing contract exists yet.
+- Alembic migrations now exist, but there is no retry ledger, dead-letter path,
+  SLA engine, or transactional workflow outbox.
 - Notifications are constructed data only; no external messaging credentials
   are needed.
 - Some source comments and documents contain mojibake from prior encoding
   handling, which can also make legacy Windows-console logging noisy.
 - Dependencies are lower-bound ranges without a lockfile. The repository has no
   CI workflow or containerized reproducibility definition.
-- The checkout is nested one directory below the provided workspace root and is
-  not a Git working tree, so commit provenance and tracked/untracked status are
-  unavailable.
+- The checkout remains nested one directory below the provided workspace root;
+  it is now a local Git repository with a Gate 0 baseline commit and no remote.
 - Business-step ownership is obscured by the legacy `AutomationPipeline` name;
   the intended boundary is n8n orchestration versus Python deterministic domain
   logic.
 
 ## PLANNED FOR V2 (not implemented)
 
-PostgreSQL operational persistence, SQLAlchemy/Alembic, production workflow
-reliability, governed context and provenance, evaluations, Metabase, optional
-governed MCP and voice interfaces, Docker Compose, and CI are plan items only.
-They are intentionally absent from this Gate 0 baseline.
+Professional n8n workflow reliability, governed context and provenance,
+evaluations, Metabase, optional governed MCP and voice interfaces, Docker
+Compose, and CI remain plan items. PostgreSQL operational persistence itself is
+runtime-verified; production configuration, backups, monitoring, and release
+packaging remain later-gate concerns.
