@@ -1,6 +1,6 @@
 # North Star Current Architecture Baseline
 
-Status: **CURRENT IMPLEMENTED** after Gate 1.5 verification on 2026-08-12.
+Status: **CURRENT IMPLEMENTED** after Gate 2 verification on 2026-08-12.
 
 This document records the system that exists today. It is not the target v2
 architecture. Items under **PLANNED FOR V2** are boundaries only; the detailed
@@ -47,7 +47,8 @@ flowchart LR
    payload construction.
 5. The repository atomically writes the materialized expense, workflow run,
    ordered events, and pending approval task when required.
-6. n8n branches on the returned status and responds to the original webhook.
+6. The internal n8n service workflow returns a normalized service envelope;
+   the public workflow preserves FastAPI's body and status for expected results.
 
 The Python class is historically named `AutomationPipeline`, but its current
 responsibility is deterministic domain-step sequencing. n8n owns the external
@@ -58,8 +59,8 @@ workflow orchestration and webhook lifecycle.
 1. A caller sends a body shaped as `{expense_id, decision, approver, comment}`
    to n8n at `POST /webhook/northstar-approval`.
 2. The Webhook node exposes that payload under `$json.body`.
-3. The HTTP Request node posts `{decision, approver, comment}` to
-   `http://127.0.0.1:8000/api/expenses/{expense_id}/decision`.
+3. The public workflow invokes the internal record-decision workflow, which
+   posts `{decision, approver, comment}` to the FastAPI decision endpoint.
 4. FastAPI permits only `approve` or `reject`; one repository transaction writes
    immutable decision history, task state, materialized expense state, and an
    audit event. The status becomes `APPROVED` or `REJECTED`.
@@ -155,19 +156,28 @@ is analytical technical debt, not a Gate 0 runtime change.
 
 ## n8n workflows
 
-Both checked-in workflows are inactive import artifacts with stable IDs and no
-credential-dependent nodes.
+Four inactive, source-controlled workflow exports form the verified control
+plane. Public workflows retain the two frozen webhook paths and synchronously
+invoke internal workflows by stable imported ID. Internal workflows own the
+FastAPI transport calls and safe service envelopes.
 
-| File | Webhook | Nodes | FastAPI target |
-|---|---|---|---|
-| `n8n/workflows/01_expense_intake.json` | `POST /webhook/northstar-expense` | Webhook, Edit Fields, HTTP Request, Switch, Respond | `POST http://127.0.0.1:8000/api/expenses/process` |
-| `n8n/workflows/02_approval_decision.json` | `POST /webhook/northstar-approval` | Webhook, HTTP Request, Respond | `POST http://127.0.0.1:8000/api/expenses/{expense_id}/decision` |
+| File | Kind | Target |
+|---|---|---|
+| `n8n/workflows/01_expense_intake.json` | Public | `POST /webhook/northstar-expense` |
+| `n8n/workflows/02_approval_decision.json` | Public | `POST /webhook/northstar-approval` |
+| `n8n/workflows/10_process_expense_service.json` | Internal | `POST /api/expenses/process` |
+| `n8n/workflows/11_record_decision_service.json` | Internal | `POST /api/expenses/{expense_id}/decision` |
 
-For this frozen local baseline, FastAPI URLs are explicit because the proven
-n8n configuration blocked `$env` expressions. A future environment-aware
-configuration must not assume localhost. Docker-based n8n requires
-`host.docker.internal` or an equivalent service name and a deliberate node
-configuration change.
+Each internal `Runtime Configuration` node defines the local API base once as
+`http://127.0.0.1:8000`; `$env` remains absent. Expense correlation and
+idempotency headers propagate to FastAPI. Expected 200, 409, and 422 statuses
+are preserved; FastAPI 5xx, timeout, and connection failures become safe JSON
+502 responses. The public response always includes JSON and
+`X-Correlation-ID`.
+
+The four exports were imported, listed, published, and executed using an
+isolated n8n 2.22.6 profile. Parent-to-child ID references remained stable. See
+`G2_N8N_CONTROL_PLANE.md` for the verified matrix and database proof.
 
 ## MCP status
 
@@ -195,7 +205,7 @@ can be overridden through `NORTHSTAR_API_BASE_URL`,
 | Service | Port | Start command |
 |---|---:|---|
 | FastAPI | 8000 | `.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000` |
-| n8n | 5678 | `npx.cmd --yes n8n` |
+| n8n | 5678 | `npx.cmd --yes n8n start` |
 | MCP | stdio / Inspector-managed | `.\.venv\Scripts\uv.exe run mcp dev mcp_server/server.py` |
 
 Static and in-process baseline checks:
@@ -240,7 +250,7 @@ state, and exits nonzero with a clear service/HTTP/timeout error on failure.
 
 ## PLANNED FOR V2 (not implemented)
 
-Professional n8n workflow reliability, governed context and provenance,
+Advanced n8n reliability, governed context and provenance,
 evaluations, Metabase, optional governed MCP and voice interfaces, Docker
 Compose, and CI remain plan items. PostgreSQL operational persistence itself is
 runtime-verified; production configuration, backups, monitoring, and release

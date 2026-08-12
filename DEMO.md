@@ -2,7 +2,7 @@
 
 This runbook starts the complete local path:
 
-`MCP client -> n8n webhook -> FastAPI -> existing Python pipeline -> runtime SQLite`
+`MCP client -> n8n public workflow -> n8n service workflow -> FastAPI -> Python pipeline -> operational database`
 
 Approval decisions return through a second n8n webhook. The analytical
 `data/northstar.db` is not used or changed by this demo.
@@ -48,31 +48,39 @@ $env:NORTHSTAR_DATABASE_URL="postgresql+psycopg://northstar:northstar@localhost:
 
 ## 3. Start and Configure n8n (Terminal 2)
 
-For n8n running directly on Windows:
+Validate, import all four workflows, and publish internal workflows before
+public workflows while n8n is stopped:
 
 ```powershell
-npx.cmd --yes n8n
+.\.venv\Scripts\python.exe scripts\validate_n8n_workflows.py
+npx.cmd --yes n8n import:workflow --separate --input="n8n\workflows"
+npx.cmd --yes n8n publish:workflow --id=northstarProcessExpenseService
+npx.cmd --yes n8n publish:workflow --id=northstarRecordDecisionService
+npx.cmd --yes n8n publish:workflow --id=northstarExpenseIntake
+npx.cmd --yes n8n publish:workflow --id=northstarApprovalDecision
+npx.cmd --yes n8n start
 ```
 
-If n8n is already installed globally, `n8n.cmd start` is equivalent. In the n8n UI:
+If n8n is already installed globally, the equivalent executable is `n8n.cmd`.
+In the n8n UI, confirm four distinct workflows:
 
-1. Import `n8n/workflows/01_expense_intake.json`.
-2. Import `n8n/workflows/02_approval_decision.json`.
-3. Open each HTTP Request node and confirm it points to
-   `http://127.0.0.1:8000`. The checked-in Gate 0 workflows deliberately use
-   this explicit local URL because n8n may block `$env` access.
-4. Activate both workflows.
-5. Confirm the production webhook URLs end in `/webhook/northstar-expense` and
+1. `North Star | 01 Expense Intake` (public).
+2. `North Star | 02 Approval Decision` (public).
+3. `North Star | 10 Process Expense Service` (internal).
+4. `North Star | 11 Record Decision Service` (internal).
+5. Confirm each internal `Runtime Configuration` node contains
+   `http://127.0.0.1:8000`.
+6. Confirm the production webhook URLs end in `/webhook/northstar-expense` and
    `/webhook/northstar-approval` (not `/webhook-test/`).
 
-If n8n runs in Docker, edit the two HTTP Request nodes to use this API base URL
-before activation:
+If n8n runs in Docker, change only the `api_base_url` field in both internal
+`Runtime Configuration` nodes before publishing:
 
 ```text
 http://host.docker.internal:8000
 ```
 
-The workflow files contain no credential-dependent nodes.
+The workflow files contain no credential-dependent, database, or Code nodes.
 
 ## 4. Configure MCP (Terminal 3)
 
@@ -135,8 +143,9 @@ persistence, n8n approval, and final-state checks all succeed.
 
 ## 5-Minute Interview Demo
 
-1. Show both active n8n workflows and briefly point out the webhook, HTTP
-   request, decision branch, and response nodes.
+1. Show the two public and two internal n8n workflows. Briefly point out
+   normalization, orchestration context, stable-ID dispatch, runtime
+   configuration, HTTP transport, service envelope, and webhook response.
 2. Check FastAPI health with `Invoke-RestMethod
    http://127.0.0.1:8000/health`.
 3. In MCP Inspector, call `submit_expense` with the fields from
@@ -158,10 +167,11 @@ persistence, n8n approval, and final-state checks all succeed.
 - `Could not connect`: verify FastAPI is on port 8000 and n8n is on port 5678.
 - n8n returns 404: activate the workflow and use `/webhook/`, not
   `/webhook-test/`.
-- n8n cannot reach FastAPI from Docker: use
-  `http://host.docker.internal:8000`.
-- n8n cannot call FastAPI on Windows: confirm the imported HTTP Request nodes
-  still use the checked-in `http://127.0.0.1:8000` URLs.
+- n8n cannot reach FastAPI from Docker: set both internal `Runtime
+  Configuration` nodes to `http://host.docker.internal:8000`, republish, and
+  restart n8n.
+- n8n cannot call FastAPI on Windows: confirm both internal `Runtime
+  Configuration` nodes still use `http://127.0.0.1:8000`.
 - HTTP 422: inspect FastAPI's response; category, department, date, and amount
   are validated by the existing `ExpenseSubmission` model.
 

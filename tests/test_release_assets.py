@@ -20,19 +20,27 @@ def _workflow(name: str) -> dict:
 def test_n8n_workflows_have_import_ids_and_expected_topology() -> None:
     intake = _workflow("01_expense_intake.json")
     approval = _workflow("02_approval_decision.json")
+    process_service = _workflow("10_process_expense_service.json")
+    decision_service = _workflow("11_record_decision_service.json")
 
     assert intake["id"] == "northstarExpenseIntake"
     assert approval["id"] == "northstarApprovalDecision"
+    assert process_service["id"] == "northstarProcessExpenseService"
+    assert decision_service["id"] == "northstarRecordDecisionService"
     assert [node["type"] for node in intake["nodes"]] == [
         "n8n-nodes-base.webhook",
         "n8n-nodes-base.set",
-        "n8n-nodes-base.httpRequest",
-        "n8n-nodes-base.switch",
+        "n8n-nodes-base.set",
+        "n8n-nodes-base.executeWorkflow",
+        "n8n-nodes-base.set",
         "n8n-nodes-base.respondToWebhook",
     ]
     assert [node["type"] for node in approval["nodes"]] == [
         "n8n-nodes-base.webhook",
-        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.set",
+        "n8n-nodes-base.set",
+        "n8n-nodes-base.executeWorkflow",
+        "n8n-nodes-base.set",
         "n8n-nodes-base.respondToWebhook",
     ]
 
@@ -44,25 +52,28 @@ def test_n8n_workflows_have_import_ids_and_expected_topology() -> None:
     assert approval_nodes["Approval Decision Webhook"]["parameters"]["path"] == (
         "northstar-approval"
     )
-    assert intake_nodes["Process Expense in FastAPI"]["parameters"]["url"] == (
-        "http://127.0.0.1:8000/api/expenses/process"
-    )
-    approval_url = approval_nodes["Record Decision in FastAPI"]["parameters"][
-        "url"
-    ]
+    process_nodes = {node["name"]: node for node in process_service["nodes"]}
+    decision_nodes = {node["name"]: node for node in decision_service["nodes"]}
+    process_url = process_nodes["Call FastAPI Process Expense"]["parameters"]["url"]
+    assert "$json.api_base_url" in process_url
+    assert "/api/expenses/process" in process_url
+    approval_url = decision_nodes["Call FastAPI Record Decision"]["parameters"]["url"]
     assert "$env" not in approval_url
-    assert "http://127.0.0.1:8000/api/expenses/" in approval_url
-    assert "encodeURIComponent($json.body.expense_id)" in approval_url
-    approval_body = approval_nodes["Record Decision in FastAPI"]["parameters"][
-        "body"
+    assert "$json.api_base_url" in approval_url
+    assert "encodeURIComponent($json.expense_id)" in approval_url
+    approval_body = decision_nodes["Call FastAPI Record Decision"]["parameters"][
+        "jsonBody"
     ]
-    assert "$json.body.decision" in approval_body
-    assert "$json.body.approver" in approval_body
-    assert "$json.body.comment" in approval_body
+    assert approval_body == "={{ $json.payload }}"
 
 
 def test_n8n_workflows_need_no_credentials() -> None:
-    for filename in ("01_expense_intake.json", "02_approval_decision.json"):
+    for filename in (
+        "01_expense_intake.json",
+        "02_approval_decision.json",
+        "10_process_expense_service.json",
+        "11_record_decision_service.json",
+    ):
         workflow = _workflow(filename)
         assert all("credentials" not in node for node in workflow["nodes"])
         assert "$env" not in json.dumps(workflow)

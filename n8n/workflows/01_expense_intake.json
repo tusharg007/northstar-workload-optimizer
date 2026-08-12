@@ -1,6 +1,6 @@
 {
   "id": "northstarExpenseIntake",
-  "name": "North Star - Expense Intake",
+  "name": "North Star | 01 Expense Intake",
   "nodes": [
     {
       "parameters": {
@@ -20,102 +20,158 @@
       "parameters": {
         "assignments": {
           "assignments": [
-            {"id": "1", "name": "expense_id", "value": "={{ $json.body.expense_id }}", "type": "string"},
-            {"id": "2", "name": "employee_id", "value": "={{ $json.body.employee_id }}", "type": "string"},
-            {"id": "3", "name": "employee_name", "value": "={{ $json.body.employee_name }}", "type": "string"},
-            {"id": "4", "name": "department", "value": "={{ $json.body.department }}", "type": "string"},
-            {"id": "5", "name": "transaction_date", "value": "={{ $json.body.transaction_date }}", "type": "string"},
-            {"id": "6", "name": "merchant", "value": "={{ $json.body.merchant }}", "type": "string"},
-            {"id": "7", "name": "category", "value": "={{ $json.body.category }}", "type": "string"},
-            {"id": "8", "name": "description", "value": "={{ $json.body.description || '' }}", "type": "string"},
-            {"id": "9", "name": "amount", "value": "={{ $json.body.amount }}", "type": "number"},
-            {"id": "10", "name": "currency", "value": "={{ $json.body.currency || 'USD' }}", "type": "string"},
-            {"id": "11", "name": "payment_method", "value": "={{ $json.body.payment_method || 'Corporate Card' }}", "type": "string"},
-            {"id": "12", "name": "receipt_attached", "value": "={{ $json.body.receipt_attached || false }}", "type": "boolean"}
+            {
+              "id": "expense-payload",
+              "name": "payload",
+              "value": "={{ ({ expense_id: $json.body?.expense_id, employee_id: $json.body?.employee_id, employee_name: $json.body?.employee_name, department: $json.body?.department, transaction_date: $json.body?.transaction_date, merchant: $json.body?.merchant, category: $json.body?.category, description: $json.body?.description || '', amount: $json.body?.amount, currency: $json.body?.currency || 'USD', payment_method: $json.body?.payment_method || 'Corporate Card', receipt_attached: $json.body?.receipt_attached ?? false }) }}",
+              "type": "object"
+            },
+            {
+              "id": "expense-correlation",
+              "name": "incoming_correlation_id",
+              "value": "={{ $json.headers?.['x-correlation-id'] || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "expense-idempotency",
+              "name": "incoming_idempotency_key",
+              "value": "={{ $json.headers?.['idempotency-key'] || '' }}",
+              "type": "string"
+            }
           ]
         },
         "options": {}
       },
       "id": "d4cd5dd1-8248-4da1-8f4a-d89b9f8f055b",
-      "name": "Normalize Expense",
+      "name": "Normalize Expense Payload",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [-480, 0]
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "http://127.0.0.1:8000/api/expenses/process",
-        "sendBody": true,
-        "contentType": "raw",
-        "rawContentType": "application/json",
-        "body": "={{ JSON.stringify($json) }}",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "context-payload",
+              "name": "payload",
+              "value": "={{ $json.payload }}",
+              "type": "object"
+            },
+            {
+              "id": "context-correlation",
+              "name": "correlation_id",
+              "value": "={{ $json.incoming_correlation_id || ('northstar-n8n-' + $execution.id) }}",
+              "type": "string"
+            },
+            {
+              "id": "context-idempotency",
+              "name": "idempotency_key",
+              "value": "={{ $json.incoming_idempotency_key || ('northstar:n8n:expense:' + String($json.payload.expense_id || 'missing')) }}",
+              "type": "string"
+            }
+          ]
+        },
         "options": {}
       },
-      "id": "0bb377c8-dd99-4bfb-a512-b3a56510820f",
-      "name": "Process Expense in FastAPI",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "id": "03017075-c035-4f16-ab31-b46e1ca53410",
+      "name": "Build Orchestration Context",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
       "position": [-240, 0]
     },
     {
       "parameters": {
-        "rules": {
-          "values": [
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "northstarProcessExpenseService",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "once",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "8454a5ec-643f-4817-9c16-5fe6a974b3ae",
+      "name": "Process Expense Service",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [0, 0],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
             {
-              "conditions": {
-                "options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2},
-                "conditions": [
-                  {
-                    "id": "201fef2f-5c43-4602-b280-eb45fe31ee43",
-                    "leftValue": "={{ $json.status }}",
-                    "rightValue": "AUTO_APPROVED",
-                    "operator": {"type": "string", "operation": "equals"}
-                  }
-                ],
-                "combinator": "and"
-              },
-              "renameOutput": true,
-              "outputKey": "Auto approved"
+              "id": "expense-response-body",
+              "name": "response_body",
+              "value": "={{ [200, 409, 422].includes(Number($json.status_code)) && $json.data ? $json.data : ({ error: 'Upstream service unavailable', correlation_id: $('Build Orchestration Context').item.json.correlation_id }) }}",
+              "type": "object"
+            },
+            {
+              "id": "expense-response-status",
+              "name": "response_status",
+              "value": "={{ [200, 409, 422].includes(Number($json.status_code)) ? Number($json.status_code) : 502 }}",
+              "type": "number"
+            },
+            {
+              "id": "expense-response-correlation",
+              "name": "correlation_id",
+              "value": "={{ $('Build Orchestration Context').item.json.correlation_id }}",
+              "type": "string"
             }
           ]
         },
-        "options": {"fallbackOutput": "extra"}
+        "options": {}
       },
-      "id": "45c97e73-c783-4b28-a0f1-cc8a2bbc93c0",
-      "name": "Switch on Status",
-      "type": "n8n-nodes-base.switch",
-      "typeVersion": 3.2,
-      "position": [0, 0]
+      "id": "a6c6868a-0204-4e54-bfdc-91486f8d21b7",
+      "name": "Map API Result",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [240, 0]
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ $json }}",
-        "options": {}
+        "responseBody": "={{ $json.response_body }}",
+        "options": {
+          "responseCode": "={{ $json.response_status }}",
+          "responseHeaders": {
+            "entries": [
+              {"name": "Content-Type", "value": "application/json"},
+              {"name": "X-Correlation-ID", "value": "={{ $json.correlation_id }}"}
+            ]
+          }
+        }
       },
       "id": "fe6aa6ef-cc2e-4f0c-8213-700ed3e053e0",
       "name": "Respond to Webhook",
       "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.4,
-      "position": [280, 0]
+      "typeVersion": 1.5,
+      "position": [480, 0]
     }
   ],
   "pinData": {},
   "connections": {
-    "Expense Intake Webhook": {"main": [[{"node": "Normalize Expense", "type": "main", "index": 0}]]},
-    "Normalize Expense": {"main": [[{"node": "Process Expense in FastAPI", "type": "main", "index": 0}]]},
-    "Process Expense in FastAPI": {"main": [[{"node": "Switch on Status", "type": "main", "index": 0}]]},
-    "Switch on Status": {
-      "main": [
-        [{"node": "Respond to Webhook", "type": "main", "index": 0}],
-        [{"node": "Respond to Webhook", "type": "main", "index": 0}]
-      ]
-    }
+    "Expense Intake Webhook": {"main": [[{"node": "Normalize Expense Payload", "type": "main", "index": 0}]]},
+    "Normalize Expense Payload": {"main": [[{"node": "Build Orchestration Context", "type": "main", "index": 0}]]},
+    "Build Orchestration Context": {"main": [[{"node": "Process Expense Service", "type": "main", "index": 0}]]},
+    "Process Expense Service": {"main": [[{"node": "Map API Result", "type": "main", "index": 0}]]},
+    "Map API Result": {"main": [[{"node": "Respond to Webhook", "type": "main", "index": 0}]]}
   },
   "active": false,
   "settings": {"executionOrder": "v1"},
-  "versionId": "25810887-a699-40bd-847d-ab615b6bcd59",
+  "versionId": "343ae4fc-5033-48e4-9235-5ec9dbb32945",
   "meta": {"templateCredsSetupCompleted": true},
   "tags": []
 }

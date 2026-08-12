@@ -1,0 +1,81 @@
+{
+  "id": "northstarRecordDecisionService",
+  "name": "North Star | 11 Record Decision Service",
+  "nodes": [
+    {
+      "parameters": {"inputSource": "passthrough"},
+      "id": "dc5c5d1c-127b-4b21-9e13-56384725e053",
+      "name": "Service Input",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [-480, 0]
+    },
+    {
+      "parameters": {
+        "assignments": {"assignments": [
+          {"id": "decision-api-base", "name": "api_base_url", "value": "http://127.0.0.1:8000", "type": "string"}
+        ]},
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "693c52cf-05df-41ee-a8b2-3b621198d279",
+      "name": "Runtime Configuration",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [-240, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.api_base_url + '/api/expenses/' + encodeURIComponent($json.expense_id) + '/decision' }}",
+        "sendHeaders": true,
+        "headerParameters": {"parameters": [
+          {"name": "Content-Type", "value": "application/json"},
+          {"name": "X-Correlation-ID", "value": "={{ $json.correlation_id }}"}
+        ]},
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.payload }}",
+        "options": {
+          "timeout": 5000,
+          "response": {"response": {"fullResponse": true, "neverError": true, "responseFormat": "json"}}
+        }
+      },
+      "id": "f82afec5-b062-49d0-ae69-f229490fbe52",
+      "name": "Call FastAPI Record Decision",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [0, 0],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {"assignments": [
+          {"id": "decision-ok", "name": "ok", "value": "={{ Number($json.statusCode) === 200 }}", "type": "boolean"},
+          {"id": "decision-status", "name": "status_code", "value": "={{ [200, 409, 422].includes(Number($json.statusCode)) ? Number($json.statusCode) : 502 }}", "type": "number"},
+          {"id": "decision-correlation", "name": "correlation_id", "value": "={{ $('Service Input').item.json.correlation_id }}", "type": "string"},
+          {"id": "decision-data", "name": "data", "value": "={{ [200, 409, 422].includes(Number($json.statusCode)) && $json.body ? $json.body : null }}", "type": "object"},
+          {"id": "decision-error", "name": "error", "value": "={{ [200, 409, 422].includes(Number($json.statusCode)) ? null : ({ message: 'Upstream service unavailable' }) }}", "type": "object"}
+        ]},
+        "options": {}
+      },
+      "id": "1b803e08-a01d-428d-861d-f79885c071d9",
+      "name": "Return Service Envelope",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [240, 0]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Service Input": {"main": [[{"node": "Runtime Configuration", "type": "main", "index": 0}]]},
+    "Runtime Configuration": {"main": [[{"node": "Call FastAPI Record Decision", "type": "main", "index": 0}]]},
+    "Call FastAPI Record Decision": {"main": [[{"node": "Return Service Envelope", "type": "main", "index": 0}]]}
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "versionId": "3e6f4706-0229-4f5a-a2cd-ea7da7838463",
+  "meta": {"templateCredsSetupCompleted": true},
+  "tags": []
+}

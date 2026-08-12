@@ -1,6 +1,6 @@
 {
   "id": "northstarApprovalDecision",
-  "name": "North Star - Approval Decision",
+  "name": "North Star | 02 Approval Decision",
   "nodes": [
     {
       "parameters": {
@@ -13,46 +13,129 @@
       "name": "Approval Decision Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [-360, 0],
+      "position": [-720, 0],
       "webhookId": "northstar-approval"
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "={{ 'http://127.0.0.1:8000/api/expenses/' + encodeURIComponent($json.body.expense_id) + '/decision' }}",
-        "sendBody": true,
-        "contentType": "raw",
-        "rawContentType": "application/json",
-        "body": "={{ JSON.stringify({ decision: $json.body.decision, approver: $json.body.approver, comment: $json.body.comment || '' }) }}",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "approval-expense-id",
+              "name": "expense_id",
+              "value": "={{ $json.body?.expense_id }}",
+              "type": "string"
+            },
+            {
+              "id": "approval-payload",
+              "name": "payload",
+              "value": "={{ ({ decision: $json.body?.decision, approver: $json.body?.approver, comment: $json.body?.comment || '' }) }}",
+              "type": "object"
+            },
+            {
+              "id": "approval-correlation",
+              "name": "incoming_correlation_id",
+              "value": "={{ $json.headers?.['x-correlation-id'] || '' }}",
+              "type": "string"
+            }
+          ]
+        },
         "options": {}
       },
-      "id": "bb810860-b0bc-4cab-ac67-fbdc7fc36bee",
-      "name": "Record Decision in FastAPI",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [-80, 0]
+      "id": "ae13fed5-c6ae-4e9a-bf27-2563059a0afe",
+      "name": "Normalize Approval Request",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [-480, 0]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {"id": "approval-context-id", "name": "expense_id", "value": "={{ $json.expense_id }}", "type": "string"},
+            {"id": "approval-context-payload", "name": "payload", "value": "={{ $json.payload }}", "type": "object"},
+            {"id": "approval-context-correlation", "name": "correlation_id", "value": "={{ $json.incoming_correlation_id || ('northstar-n8n-' + $execution.id) }}", "type": "string"}
+          ]
+        },
+        "options": {}
+      },
+      "id": "32f976d0-1b75-4ff1-b17c-c827eb8247af",
+      "name": "Build Orchestration Context",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [-240, 0]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {"__rl": true, "value": "northstarRecordDecisionService", "mode": "id"},
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "once",
+        "options": {"waitForSubWorkflow": true}
+      },
+      "id": "70ee372f-b2f7-4c1b-aa58-0586040f50fa",
+      "name": "Record Decision Service",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [0, 0],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {"id": "approval-response-body", "name": "response_body", "value": "={{ [200, 409, 422].includes(Number($json.status_code)) && $json.data ? $json.data : ({ error: 'Upstream service unavailable', correlation_id: $('Build Orchestration Context').item.json.correlation_id }) }}", "type": "object"},
+            {"id": "approval-response-status", "name": "response_status", "value": "={{ [200, 409, 422].includes(Number($json.status_code)) ? Number($json.status_code) : 502 }}", "type": "number"},
+            {"id": "approval-response-correlation", "name": "correlation_id", "value": "={{ $('Build Orchestration Context').item.json.correlation_id }}", "type": "string"}
+          ]
+        },
+        "options": {}
+      },
+      "id": "8b9e517c-e82c-4675-a962-735b3ef1d43b",
+      "name": "Map API Result",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [240, 0]
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ $json }}",
-        "options": {}
+        "responseBody": "={{ $json.response_body }}",
+        "options": {
+          "responseCode": "={{ $json.response_status }}",
+          "responseHeaders": {
+            "entries": [
+              {"name": "Content-Type", "value": "application/json"},
+              {"name": "X-Correlation-ID", "value": "={{ $json.correlation_id }}"}
+            ]
+          }
+        }
       },
       "id": "7e61b1f5-8bfe-458b-9e3c-66e4759ee47a",
       "name": "Respond to Webhook",
       "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.4,
-      "position": [200, 0]
+      "typeVersion": 1.5,
+      "position": [480, 0]
     }
   ],
   "pinData": {},
   "connections": {
-    "Approval Decision Webhook": {"main": [[{"node": "Record Decision in FastAPI", "type": "main", "index": 0}]]},
-    "Record Decision in FastAPI": {"main": [[{"node": "Respond to Webhook", "type": "main", "index": 0}]]}
+    "Approval Decision Webhook": {"main": [[{"node": "Normalize Approval Request", "type": "main", "index": 0}]]},
+    "Normalize Approval Request": {"main": [[{"node": "Build Orchestration Context", "type": "main", "index": 0}]]},
+    "Build Orchestration Context": {"main": [[{"node": "Record Decision Service", "type": "main", "index": 0}]]},
+    "Record Decision Service": {"main": [[{"node": "Map API Result", "type": "main", "index": 0}]]},
+    "Map API Result": {"main": [[{"node": "Respond to Webhook", "type": "main", "index": 0}]]}
   },
   "active": false,
   "settings": {"executionOrder": "v1"},
-  "versionId": "b57dab9c-c65f-4da2-a034-691091773d3a",
+  "versionId": "7d972ae2-f483-4f68-b817-9fe842d6fbb1",
   "meta": {"templateCredsSetupCompleted": true},
   "tags": []
 }

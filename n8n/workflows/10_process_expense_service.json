@@ -1,0 +1,82 @@
+{
+  "id": "northstarProcessExpenseService",
+  "name": "North Star | 10 Process Expense Service",
+  "nodes": [
+    {
+      "parameters": {"inputSource": "passthrough"},
+      "id": "c412fa19-10b2-4f6d-9cde-7aac13f97df2",
+      "name": "Service Input",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [-480, 0]
+    },
+    {
+      "parameters": {
+        "assignments": {"assignments": [
+          {"id": "process-api-base", "name": "api_base_url", "value": "http://127.0.0.1:8000", "type": "string"}
+        ]},
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "9498168e-4ff2-42ac-80e2-d314093001d2",
+      "name": "Runtime Configuration",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [-240, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.api_base_url + '/api/expenses/process' }}",
+        "sendHeaders": true,
+        "headerParameters": {"parameters": [
+          {"name": "Content-Type", "value": "application/json"},
+          {"name": "X-Correlation-ID", "value": "={{ $json.correlation_id }}"},
+          {"name": "Idempotency-Key", "value": "={{ $json.idempotency_key }}"}
+        ]},
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.payload }}",
+        "options": {
+          "timeout": 5000,
+          "response": {"response": {"fullResponse": true, "neverError": true, "responseFormat": "json"}}
+        }
+      },
+      "id": "e75b78b1-c4f2-47a6-98f4-c9d735fa2b38",
+      "name": "Call FastAPI Process Expense",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [0, 0],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {"assignments": [
+          {"id": "process-ok", "name": "ok", "value": "={{ Number($json.statusCode) === 200 }}", "type": "boolean"},
+          {"id": "process-status", "name": "status_code", "value": "={{ [200, 409, 422].includes(Number($json.statusCode)) ? Number($json.statusCode) : 502 }}", "type": "number"},
+          {"id": "process-correlation", "name": "correlation_id", "value": "={{ $('Service Input').item.json.correlation_id }}", "type": "string"},
+          {"id": "process-data", "name": "data", "value": "={{ [200, 409, 422].includes(Number($json.statusCode)) && $json.body ? $json.body : null }}", "type": "object"},
+          {"id": "process-error", "name": "error", "value": "={{ [200, 409, 422].includes(Number($json.statusCode)) ? null : ({ message: 'Upstream service unavailable' }) }}", "type": "object"}
+        ]},
+        "options": {}
+      },
+      "id": "b8715201-d5ad-4fa1-856b-fd144dc2a1a9",
+      "name": "Return Service Envelope",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [240, 0]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Service Input": {"main": [[{"node": "Runtime Configuration", "type": "main", "index": 0}]]},
+    "Runtime Configuration": {"main": [[{"node": "Call FastAPI Process Expense", "type": "main", "index": 0}]]},
+    "Call FastAPI Process Expense": {"main": [[{"node": "Return Service Envelope", "type": "main", "index": 0}]]}
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "versionId": "69dfaf47-d81a-43ce-9ad5-0832289f265b",
+  "meta": {"templateCredsSetupCompleted": true},
+  "tags": []
+}
