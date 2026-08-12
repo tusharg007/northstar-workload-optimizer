@@ -16,6 +16,9 @@ EXPECTED_FILES = {
     "02_approval_decision.json",
     "10_process_expense_service.json",
     "11_record_decision_service.json",
+    "20_approval_orchestrator.json",
+    "21_approval_notification_service.json",
+    "22_approval_sla_monitor.json",
 }
 PUBLIC_WEBHOOKS = {
     "northstar-expense": "POST",
@@ -25,14 +28,19 @@ SUPPORTED_NODE_TYPES = {
     "n8n-nodes-base.executeWorkflow",
     "n8n-nodes-base.executeWorkflowTrigger",
     "n8n-nodes-base.httpRequest",
+    "n8n-nodes-base.if",
     "n8n-nodes-base.respondToWebhook",
     "n8n-nodes-base.set",
+    "n8n-nodes-base.scheduleTrigger",
+    "n8n-nodes-base.splitOut",
     "n8n-nodes-base.stickyNote",
     "n8n-nodes-base.webhook",
+    "n8n-nodes-base.wait",
 }
 TRIGGER_TYPES = {
     "n8n-nodes-base.executeWorkflowTrigger",
     "n8n-nodes-base.webhook",
+    "n8n-nodes-base.scheduleTrigger",
 }
 NON_EXECUTABLE_TYPES = {"n8n-nodes-base.stickyNote"}
 FORBIDDEN_DB_NODE_MARKERS = (
@@ -226,6 +234,23 @@ def validate_workflows(
             "Runtime Configuration",
             "Call FastAPI Record Decision",
             "Return Service Envelope",
+        },
+        "20_approval_orchestrator.json": {
+            "Approval Context Input",
+            "Register n8n Orchestration Metadata",
+            "Wait for Human Decision",
+            "Mark Orchestration Completed",
+            "Send Completion Notification",
+        },
+        "21_approval_notification_service.json": {
+            "Notification Input",
+            "Send to Notification Sink",
+            "Persist Notification Sent",
+        },
+        "22_approval_sla_monitor.json": {
+            "Approval SLA Schedule",
+            "Reserve Due SLA Notifications",
+            "Send SLA Notification",
         },
     }
     for filename, expected in required_nodes.items():

@@ -128,6 +128,31 @@ class ApprovalTask(Base):
         UTCDateTime(), default=utc_now, onupdate=utc_now, server_default=func.now()
     )
     due_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
+    orchestration_status: Mapped[str] = mapped_column(
+        String(32), default="NOT_STARTED", server_default="NOT_STARTED", index=True
+    )
+    n8n_execution_id: Mapped[str | None] = mapped_column(
+        String(64), nullable=True, unique=True
+    )
+    n8n_wait_resume_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    orchestration_claimed_at: Mapped[datetime | None] = mapped_column(
+        UTCDateTime(), nullable=True
+    )
+    wait_registered_at: Mapped[datetime | None] = mapped_column(
+        UTCDateTime(), nullable=True
+    )
+    orchestration_completed_at: Mapped[datetime | None] = mapped_column(
+        UTCDateTime(), nullable=True
+    )
+    last_notification_at: Mapped[datetime | None] = mapped_column(
+        UTCDateTime(), nullable=True
+    )
+    reminder_count: Mapped[int] = mapped_column(
+        Integer, default=0, server_default="0"
+    )
+    escalation_level: Mapped[int] = mapped_column(
+        Integer, default=0, server_default="0"
+    )
 
 
 class ApprovalDecision(Base):
@@ -151,4 +176,39 @@ class ApprovalDecision(Base):
     comment: Mapped[str] = mapped_column(Text, default="")
     decided_at: Mapped[datetime] = mapped_column(
         UTCDateTime(), default=utc_now, server_default=func.now()
+    )
+
+
+class ApprovalNotification(Base):
+    __tablename__ = "approval_notifications"
+    __table_args__ = (
+        UniqueConstraint(
+            "approval_task_id",
+            "notification_type",
+            "escalation_level",
+            name="uq_approval_notification_logical",
+        ),
+    )
+
+    notification_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    approval_task_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("approval_tasks.task_id", ondelete="CASCADE"),
+        index=True,
+    )
+    notification_type: Mapped[str] = mapped_column(String(32), index=True)
+    escalation_level: Mapped[int] = mapped_column(
+        Integer, default=0, server_default="0"
+    )
+    status: Mapped[str] = mapped_column(
+        String(32), default="PENDING", server_default="PENDING", index=True
+    )
+    target_role: Mapped[str] = mapped_column(String(255))
+    payload: Mapped[dict] = mapped_column(JSON_TYPE)
+    created_at: Mapped[datetime] = mapped_column(
+        UTCDateTime(), default=utc_now, server_default=func.now()
+    )
+    sent_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
+    provider_message_id: Mapped[str | None] = mapped_column(
+        String(255), nullable=True
     )

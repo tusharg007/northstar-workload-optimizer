@@ -26,8 +26,19 @@
     },
     {
       "parameters": {
+        "url": "={{ $json.api_base_url + '/api/internal/approval-tasks/by-expense/' + encodeURIComponent($json.expense_id) }}",
+        "options": {"timeout": 5000, "response": {"response": {"fullResponse": true, "neverError": true, "responseFormat": "json"}}}
+      },
+      "id": "11000000-0000-4000-8000-000000000001",
+      "name": "Resolve Approval Orchestration",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [0, -120]
+    },
+    {
+      "parameters": {
         "method": "POST",
-        "url": "={{ $json.api_base_url + '/api/expenses/' + encodeURIComponent($json.expense_id) + '/decision' }}",
+        "url": "={{ $('Runtime Configuration').item.json.api_base_url + '/api/expenses/' + encodeURIComponent($('Service Input').item.json.expense_id) + '/decision' }}",
         "sendHeaders": true,
         "headerParameters": {"parameters": [
           {"name": "Content-Type", "value": "application/json"},
@@ -36,7 +47,7 @@
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "={{ $json.payload }}",
+        "jsonBody": "={{ $('Service Input').item.json.payload }}",
         "options": {
           "timeout": 5000,
           "response": {"response": {"fullResponse": true, "neverError": true, "responseFormat": "json"}}
@@ -46,7 +57,7 @@
       "name": "Call FastAPI Record Decision",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [0, 0],
+      "position": [240, 0],
       "onError": "continueRegularOutput"
     },
     {
@@ -56,7 +67,9 @@
           {"id": "decision-status", "name": "status_code", "value": "={{ [200, 409, 422].includes(Number($json.statusCode)) ? Number($json.statusCode) : 502 }}", "type": "number"},
           {"id": "decision-correlation", "name": "correlation_id", "value": "={{ $('Service Input').item.json.correlation_id }}", "type": "string"},
           {"id": "decision-data", "name": "data", "value": "={{ [200, 409, 422].includes(Number($json.statusCode)) && $json.body ? $json.body : null }}", "type": "object"},
-          {"id": "decision-error", "name": "error", "value": "={{ [200, 409, 422].includes(Number($json.statusCode)) ? null : ({ message: 'Upstream service unavailable' }) }}", "type": "object"}
+          {"id": "decision-error", "name": "error", "value": "={{ [200, 409, 422].includes(Number($json.statusCode)) ? null : ({ message: 'Upstream service unavailable' }) }}", "type": "object"},
+          {"id": "decision-resume", "name": "resume_url", "value": "={{ Number($json.statusCode) === 200 ? ($('Resolve Approval Orchestration').item.json.body?.resume_url || '') : '' }}", "type": "string"},
+          {"id": "decision-orchestration", "name": "orchestration_status", "value": "={{ $('Resolve Approval Orchestration').item.json.body?.orchestration_status || 'NOT_REGISTERED' }}", "type": "string"}
         ]},
         "options": {}
       },
@@ -64,13 +77,14 @@
       "name": "Return Service Envelope",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [240, 0]
+      "position": [480, 0]
     }
   ],
   "pinData": {},
   "connections": {
     "Service Input": {"main": [[{"node": "Runtime Configuration", "type": "main", "index": 0}]]},
-    "Runtime Configuration": {"main": [[{"node": "Call FastAPI Record Decision", "type": "main", "index": 0}]]},
+    "Runtime Configuration": {"main": [[{"node": "Resolve Approval Orchestration", "type": "main", "index": 0}]]},
+    "Resolve Approval Orchestration": {"main": [[{"node": "Call FastAPI Record Decision", "type": "main", "index": 0}]]},
     "Call FastAPI Record Decision": {"main": [[{"node": "Return Service Envelope", "type": "main", "index": 0}]]}
   },
   "active": false,

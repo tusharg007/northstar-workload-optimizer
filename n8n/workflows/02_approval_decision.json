@@ -89,10 +89,60 @@
     },
     {
       "parameters": {
+        "assignments": {"assignments": [
+          {"id": "approval-preserve-status", "name": "status_code", "value": "={{ $json.status_code }}", "type": "number"},
+          {"id": "approval-preserve-data", "name": "data", "value": "={{ $json.data }}", "type": "object"},
+          {"id": "approval-preserve-error", "name": "error", "value": "={{ $json.error }}", "type": "object"},
+          {"id": "approval-preserve-resume", "name": "resume_url", "value": "={{ $json.resume_url || '' }}", "type": "string"}
+        ]},
+        "options": {}
+      },
+      "id": "02000000-0000-4000-8000-000000000001",
+      "name": "Preserve Persisted Decision Result",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [240, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2},
+          "conditions": [{"id": "approval-resume", "leftValue": "={{ String(Number($json.status_code) === 200 && $json.resume_url.length > 0) }}", "rightValue": "true", "operator": {"type": "string", "operation": "equals"}}],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "02000000-0000-4000-8000-000000000002",
+      "name": "Active Wait Exists",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [480, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Preserve Persisted Decision Result').item.json.resume_url }}",
+        "sendHeaders": true,
+        "headerParameters": {"parameters": [{"name": "Content-Type", "value": "application/json"}]},
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ ({ expense_id: $('Build Orchestration Context').item.json.expense_id, persisted_status: $('Preserve Persisted Decision Result').item.json.data.status }) }}",
+        "options": {"timeout": 5000, "response": {"response": {"fullResponse": true, "neverError": true, "responseFormat": "json"}}}
+      },
+      "id": "02000000-0000-4000-8000-000000000003",
+      "name": "Resume Waiting Approval Orchestrator",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, -120],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
         "assignments": {
           "assignments": [
-            {"id": "approval-response-body", "name": "response_body", "value": "={{ [200, 409, 422].includes(Number($json.status_code)) && $json.data ? $json.data : ({ error: 'Upstream service unavailable', correlation_id: $('Build Orchestration Context').item.json.correlation_id }) }}", "type": "object"},
-            {"id": "approval-response-status", "name": "response_status", "value": "={{ [200, 409, 422].includes(Number($json.status_code)) ? Number($json.status_code) : 502 }}", "type": "number"},
+            {"id": "approval-response-body", "name": "response_body", "value": "={{ [200, 409, 422].includes(Number($('Preserve Persisted Decision Result').item.json.status_code)) && $('Preserve Persisted Decision Result').item.json.data ? $('Preserve Persisted Decision Result').item.json.data : ({ error: 'Upstream service unavailable', correlation_id: $('Build Orchestration Context').item.json.correlation_id }) }}", "type": "object"},
+            {"id": "approval-response-status", "name": "response_status", "value": "={{ [200, 409, 422].includes(Number($('Preserve Persisted Decision Result').item.json.status_code)) ? Number($('Preserve Persisted Decision Result').item.json.status_code) : 502 }}", "type": "number"},
             {"id": "approval-response-correlation", "name": "correlation_id", "value": "={{ $('Build Orchestration Context').item.json.correlation_id }}", "type": "string"}
           ]
         },
@@ -102,7 +152,7 @@
       "name": "Map API Result",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [240, 0]
+      "position": [960, 0]
     },
     {
       "parameters": {
@@ -122,7 +172,7 @@
       "name": "Respond to Webhook",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
-      "position": [480, 0]
+      "position": [1200, 0]
     }
   ],
   "pinData": {},
@@ -130,7 +180,10 @@
     "Approval Decision Webhook": {"main": [[{"node": "Normalize Approval Request", "type": "main", "index": 0}]]},
     "Normalize Approval Request": {"main": [[{"node": "Build Orchestration Context", "type": "main", "index": 0}]]},
     "Build Orchestration Context": {"main": [[{"node": "Record Decision Service", "type": "main", "index": 0}]]},
-    "Record Decision Service": {"main": [[{"node": "Map API Result", "type": "main", "index": 0}]]},
+    "Record Decision Service": {"main": [[{"node": "Preserve Persisted Decision Result", "type": "main", "index": 0}]]},
+    "Preserve Persisted Decision Result": {"main": [[{"node": "Active Wait Exists", "type": "main", "index": 0}]]},
+    "Active Wait Exists": {"main": [[{"node": "Resume Waiting Approval Orchestrator", "type": "main", "index": 0}], [{"node": "Map API Result", "type": "main", "index": 0}]]},
+    "Resume Waiting Approval Orchestrator": {"main": [[{"node": "Map API Result", "type": "main", "index": 0}]]},
     "Map API Result": {"main": [[{"node": "Respond to Webhook", "type": "main", "index": 0}]]}
   },
   "active": false,

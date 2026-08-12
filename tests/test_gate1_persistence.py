@@ -52,6 +52,7 @@ def test_schema_creation_and_repository_json_round_trip(
     store = gate1_client.app.state.store
     assert set(inspect(store.database.engine).get_table_names()) == {
         "approval_decisions",
+        "approval_notifications",
         "approval_tasks",
         "expenses",
         "workflow_events",

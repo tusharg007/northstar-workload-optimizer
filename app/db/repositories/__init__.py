@@ -6,10 +6,16 @@ from app.db.repositories.workflows import (
     IdempotencyConflictError,
     WorkflowRepository,
 )
+from app.db.repositories.orchestration import (
+    ApprovalTaskNotFoundError,
+    OrchestrationConflictError,
+)
 
 __all__ = [
     "DecisionConflictError",
     "ExpenseConflictError",
     "IdempotencyConflictError",
     "WorkflowRepository",
+    "ApprovalTaskNotFoundError",
+    "OrchestrationConflictError",
 ]

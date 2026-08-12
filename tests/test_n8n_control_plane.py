@@ -31,14 +31,14 @@ def _serialized(filename: str) -> str:
 
 def test_all_workflow_exports_parse_and_pass_validator() -> None:
     workflows = _workflows()
-    assert len(workflows) == 4
+    assert len(workflows) == 7
     assert validate_workflows(workflows) == []
 
 
 def test_workflow_ids_and_names_are_unique() -> None:
     workflows = _workflows().values()
-    assert len({workflow["id"] for workflow in workflows}) == 4
-    assert len({workflow["name"] for workflow in workflows}) == 4
+    assert len({workflow["id"] for workflow in workflows}) == 7
+    assert len({workflow["name"] for workflow in workflows}) == 7
 
 
 def test_public_webhook_contracts_are_frozen() -> None:
@@ -66,25 +66,23 @@ def test_modular_workflow_references_resolve_to_stable_ids() -> None:
     assert referenced == {
         "northstarProcessExpenseService",
         "northstarRecordDecisionService",
+        "northstarApprovalOrchestrator",
+        "northstarApprovalNotificationService",
     }
     assert referenced <= ids
 
 
 def test_service_endpoints_derive_from_runtime_configuration() -> None:
-    for filename, suffix in (
-        ("10_process_expense_service.json", "/api/expenses/process"),
-        ("11_record_decision_service.json", "/decision"),
+    for filename, node_name, suffix in (
+        ("10_process_expense_service.json", "Call FastAPI Process Expense", "/api/expenses/process"),
+        ("11_record_decision_service.json", "Call FastAPI Record Decision", "/decision"),
     ):
         workflow = _workflows()[filename]
         nodes = {node["name"]: node for node in workflow["nodes"]}
         assignments = nodes["Runtime Configuration"]["parameters"]["assignments"]
         assert assignments["assignments"][0]["value"] == "http://127.0.0.1:8000"
-        http_node = next(
-            node
-            for node in workflow["nodes"]
-            if node["type"] == "n8n-nodes-base.httpRequest"
-        )
-        assert "$json.api_base_url" in http_node["parameters"]["url"]
+        http_node = nodes[node_name]
+        assert "api_base_url" in http_node["parameters"]["url"]
         assert suffix in http_node["parameters"]["url"]
 
 
@@ -107,25 +105,29 @@ def test_correlation_and_idempotency_propagation_are_present() -> None:
 
 
 def test_http_transport_has_bounded_timeout_and_no_retry() -> None:
-    for filename in (
-        "10_process_expense_service.json",
-        "11_record_decision_service.json",
-    ):
-        workflow = _workflows()[filename]
-        http_node = next(
-            node
-            for node in workflow["nodes"]
-            if node["type"] == "n8n-nodes-base.httpRequest"
-        )
+    http_nodes = [
+        node
+        for workflow in _workflows().values()
+        for node in workflow["nodes"]
+        if node["type"] == "n8n-nodes-base.httpRequest"
+    ]
+    assert http_nodes
+    for http_node in http_nodes:
         response = http_node["parameters"]["options"]["response"]["response"]
         assert http_node["parameters"]["options"]["timeout"] == 5000
-        assert response == {
-            "fullResponse": True,
-            "neverError": True,
-            "responseFormat": "json",
-        }
-        assert http_node["onError"] == "continueRegularOutput"
+        assert response["fullResponse"] is True
+        assert response["responseFormat"] == "json"
+        assert "neverError" in response
         assert "retryOnFail" not in http_node
+
+    public_service_nodes = {
+        "Call FastAPI Process Expense",
+        "Call FastAPI Record Decision",
+        "Resume Waiting Approval Orchestrator",
+    }
+    for http_node in http_nodes:
+        if http_node["name"] in public_service_nodes:
+            assert http_node["onError"] == "continueRegularOutput"
 
 
 def test_response_nodes_return_json_status_and_correlation_header() -> None:
@@ -163,6 +165,40 @@ def test_no_env_secrets_credentials_code_or_database_nodes() -> None:
         assert forbidden_types.isdisjoint(
             {node["type"] for node in workflow["nodes"]}
         )
+
+
+def test_gate3a_wait_schedule_and_resume_security_contracts() -> None:
+    workflows = _workflows()
+    orchestrator = workflows["20_approval_orchestrator.json"]
+    wait_nodes = [
+        node for node in orchestrator["nodes"] if node["type"] == "n8n-nodes-base.wait"
+    ]
+    assert len(wait_nodes) == 1
+    assert wait_nodes[0]["parameters"]["resume"] == "webhook"
+    assert wait_nodes[0]["parameters"]["httpMethod"] == "POST"
+    assert "$execution.resumeUrl" in _serialized("20_approval_orchestrator.json")
+
+    monitor = workflows["22_approval_sla_monitor.json"]
+    assert any(
+        node["type"] == "n8n-nodes-base.scheduleTrigger"
+        for node in monitor["nodes"]
+    )
+    assert "northstarApprovalNotificationService" in _serialized(
+        "22_approval_sla_monitor.json"
+    )
+    for filename in ("01_expense_intake.json", "02_approval_decision.json"):
+        public = workflows[filename]
+        responses = [
+            node
+            for node in public["nodes"]
+            if node["type"] == "n8n-nodes-base.respondToWebhook"
+        ]
+        assert all("resume_url" not in node["parameters"]["responseBody"] for node in responses)
+    assert not any(
+        node["type"] == "n8n-nodes-base.errorTrigger"
+        for workflow in workflows.values()
+        for node in workflow["nodes"]
+    )
 
 
 @pytest.mark.skipif(

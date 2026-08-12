@@ -1,6 +1,6 @@
 # North Star Current Architecture Baseline
 
-Status: **CURRENT IMPLEMENTED** after Gate 2 verification on 2026-08-12.
+Status: **CURRENT IMPLEMENTED** after Gate 3A verification on 2026-08-12.
 
 This document records the system that exists today. It is not the target v2
 architecture. Items under **PLANNED FOR V2** are boundaries only; the detailed
@@ -12,7 +12,8 @@ sequence is in `V2_PLAN.md`.
 flowchart LR
     Client["Client or MCP Inspector"]
     MCP["Python MCP server\nstdio, optional demo interface"]
-    N8N["n8n on :5678\nworkflow orchestration"]
+    N8N["n8n on :5678\norchestration, Wait/resume, SLA schedule"]
+    Notify["HTTP notification adapter\nlocal sink on :9010"]
     API["FastAPI on :8000\nHTTP boundary"]
     Domain["AutomationPipeline\ndeterministic validation, anomaly scoring, routing"]
     Repository["SQLAlchemy repositories\ntransaction + idempotency boundary"]
@@ -26,6 +27,7 @@ flowchart LR
     MCP -->|submit / approve| N8N
     MCP -->|read / explain| API
     N8N --> API
+    N8N --> Notify
     API --> Domain
     API --> Repository
     Repository --> Runtime
@@ -59,12 +61,15 @@ workflow orchestration and webhook lifecycle.
 1. A caller sends a body shaped as `{expense_id, decision, approver, comment}`
    to n8n at `POST /webhook/northstar-approval`.
 2. The Webhook node exposes that payload under `$json.body`.
-3. The public workflow invokes the internal record-decision workflow, which
-   posts `{decision, approver, comment}` to the FastAPI decision endpoint.
+3. The internal decision workflow privately resolves any registered Wait
+   capability, then posts `{decision, approver, comment}` to FastAPI.
 4. FastAPI permits only `approve` or `reject`; one repository transaction writes
    immutable decision history, task state, materialized expense state, and an
    audit event. The status becomes `APPROVED` or `REJECTED`.
-5. n8n returns that response to the caller.
+5. Only after that commit, the public workflow signals an active n8n Wait. The
+   resumed orchestrator fetches persisted truth, completes, and notifies.
+6. n8n returns the persisted FastAPI response to the caller. The capability URL
+   is never public.
 
 ## FastAPI contract
 
@@ -113,10 +118,11 @@ FastAPI owns operational state through synchronous SQLAlchemy 2.x repositories.
 target durable source of truth; the compatibility default is
 `sqlite:///data/northstar_runtime.db`. Tests inject disposable SQLite URLs.
 
-Alembic revision `20260812_0001` creates five tables: `expenses`,
-`workflow_runs`, `workflow_events`, `approval_tasks`, and
-`approval_decisions`. JSON uses JSONB on PostgreSQL and JSON on SQLite. Money is
-`Numeric(18,2)`. Application timestamps are normalized to aware UTC values.
+Alembic revision `20260812_0001` creates the original five operational tables.
+Revision `20260812_0002` adds orchestration metadata to `approval_tasks` and the
+`approval_notifications` table. JSON uses JSONB on PostgreSQL and JSON on
+SQLite. Money is `Numeric(18,2)`. Application timestamps are normalized to
+aware UTC values.
 
 Processing atomically persists the materialized expense, one workflow run,
 ordered audit events, and a pending approval task. Approval atomically persists
@@ -156,10 +162,13 @@ is analytical technical debt, not a Gate 0 runtime change.
 
 ## n8n workflows
 
-Four inactive, source-controlled workflow exports form the verified control
-plane. Public workflows retain the two frozen webhook paths and synchronously
-invoke internal workflows by stable imported ID. Internal workflows own the
-FastAPI transport calls and safe service envelopes.
+Seven inactive, source-controlled workflow exports form the verified control
+plane. Public workflows retain the two frozen webhook paths. Review-required
+submission claims and starts one non-blocking approval child. The child stores
+its execution and Wait capability in PostgreSQL, sends the initial notification,
+checks for a terminal race, and waits. The scheduled workflow reserves due SLA
+notifications through FastAPI. Internal workflows own HTTP transport and safe
+service envelopes.
 
 | File | Kind | Target |
 |---|---|---|
@@ -167,6 +176,9 @@ FastAPI transport calls and safe service envelopes.
 | `n8n/workflows/02_approval_decision.json` | Public | `POST /webhook/northstar-approval` |
 | `n8n/workflows/10_process_expense_service.json` | Internal | `POST /api/expenses/process` |
 | `n8n/workflows/11_record_decision_service.json` | Internal | `POST /api/expenses/{expense_id}/decision` |
+| `n8n/workflows/20_approval_orchestrator.json` | Internal | Durable Wait/resume lifecycle |
+| `n8n/workflows/21_approval_notification_service.json` | Internal | Configurable HTTP notification adapter |
+| `n8n/workflows/22_approval_sla_monitor.json` | Scheduled | Reserve and dispatch due notifications |
 
 Each internal `Runtime Configuration` node defines the local API base once as
 `http://127.0.0.1:8000`; `$env` remains absent. Expense correlation and
@@ -175,9 +187,11 @@ are preserved; FastAPI 5xx, timeout, and connection failures become safe JSON
 502 responses. The public response always includes JSON and
 `X-Correlation-ID`.
 
-The four exports were imported, listed, published, and executed using an
-isolated n8n 2.22.6 profile. Parent-to-child ID references remained stable. See
-`G2_N8N_CONTROL_PLANE.md` for the verified matrix and database proof.
+The seven exports were imported, listed, published, and executed using an
+isolated n8n 2.22.6 profile. Parent-to-child ID references remained stable. A
+waiting execution survived a clean n8n restart using the same isolated state
+directory and resumed successfully. See `G3A_DURABLE_HITL_SLA.md` for Wait,
+race, SLA, notification, and PostgreSQL evidence.
 
 ## MCP status
 
@@ -206,6 +220,7 @@ can be overridden through `NORTHSTAR_API_BASE_URL`,
 |---|---:|---|
 | FastAPI | 8000 | `.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000` |
 | n8n | 5678 | `npx.cmd --yes n8n start` |
+| Local notification sink | 9010 | `.\.venv\Scripts\python.exe -m uvicorn scripts.notification_sink:app --port 9010` |
 | MCP | stdio / Inspector-managed | `.\.venv\Scripts\uv.exe run mcp dev mcp_server/server.py` |
 
 Static and in-process baseline checks:
@@ -234,10 +249,13 @@ state, and exits nonzero with a clear service/HTTP/timeout error on failure.
   HTTP processing/approval, and restart persistence in a disposable container.
 - Materially changed reprocessing is deliberately rejected; no explicit future
   reprocessing contract exists yet.
-- Alembic migrations now exist, but there is no retry ledger, dead-letter path,
-  SLA engine, or transactional workflow outbox.
-- Notifications are constructed data only; no external messaging credentials
-  are needed.
+- Internal orchestration endpoints have no authentication and are
+  trusted-network-only. Wait resume URLs are sensitive capability URLs.
+- There is no retry ledger, dead-letter path, resume reconciliation, or
+  transactional workflow outbox; those remain Gate 3B work.
+- SLA defaults are configurable operational demo timing, not enterprise policy.
+- The included notification sink is volatile test/demo infrastructure; no
+  external messaging credentials are needed.
 - Some source comments and documents contain mojibake from prior encoding
   handling, which can also make legacy Windows-console logging noisy.
 - Dependencies are lower-bound ranges without a lockfile. The repository has no
@@ -250,8 +268,9 @@ state, and exits nonzero with a clear service/HTTP/timeout error on failure.
 
 ## PLANNED FOR V2 (not implemented)
 
-Advanced n8n reliability, governed context and provenance,
+Gate 3B retries, global error handling, DLQ/replay, resume reconciliation, and
+transactional outbox remain planned. Governed context and provenance,
 evaluations, Metabase, optional governed MCP and voice interfaces, Docker
-Compose, and CI remain plan items. PostgreSQL operational persistence itself is
-runtime-verified; production configuration, backups, monitoring, and release
-packaging remain later-gate concerns.
+Compose, and CI also remain later work. PostgreSQL operational persistence and
+Gate 3A durable HITL are runtime-verified; production authentication, backups,
+monitoring, and release packaging remain later-gate concerns.

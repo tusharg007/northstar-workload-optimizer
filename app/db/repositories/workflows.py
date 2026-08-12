@@ -14,6 +14,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.approval_sla import ApprovalSLAService
 from app.db.base import utc_now
 from app.db.models import (
     ApprovalDecision,
@@ -71,6 +72,7 @@ class WorkflowRepository:
 
     def __init__(self, database: Database) -> None:
         self.database = database
+        self.sla = ApprovalSLAService()
 
     def process_expense(
         self,
@@ -205,6 +207,7 @@ class WorkflowRepository:
             self._add_processing_events(session, run, result, now)
 
             if result["status"] in {"PENDING_APPROVAL", "ESCALATED"}:
+                risk_level = anomaly.get("risk_level")
                 session.add(
                     ApprovalTask(
                         task_id=str(uuid4()),
@@ -213,6 +216,7 @@ class WorkflowRepository:
                         approver_role=decision.get("approver_role") or "Unassigned",
                         approval_level=int(decision.get("approver_level") or 0),
                         status="PENDING",
+                        due_at=self.sla.due_at(now, risk_level),
                         created_at=now,
                         updated_at=now,
                     )
@@ -462,6 +466,11 @@ class WorkflowRepository:
                             approver_role=row.get("approver_role") or "Unassigned",
                             approval_level=int(routing.get("approver_level") or 0),
                             status=task_status,
+                            due_at=(
+                                self.sla.due_at(created_at, row.get("risk_level"))
+                                if task_status == "PENDING"
+                                else None
+                            ),
                             created_at=created_at,
                             updated_at=updated_at,
                         )

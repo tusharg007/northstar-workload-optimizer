@@ -46,43 +46,61 @@ $env:NORTHSTAR_DATABASE_URL="postgresql+psycopg://northstar:northstar@localhost:
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000
 ```
 
-## 3. Start and Configure n8n (Terminal 2)
+## 3. Start the Local Notification Sink (Terminal 2)
 
-Validate, import all four workflows, and publish internal workflows before
-public workflows while n8n is stopped:
+```powershell
+.\.venv\Scripts\python.exe -m uvicorn scripts.notification_sink:app --port 9010
+```
+
+This test/demo adapter keeps notifications only in memory. Check it with
+`Invoke-RestMethod http://127.0.0.1:9010/test/notifications`.
+
+## 4. Start and Configure n8n (Terminal 3)
+
+Validate, import all seven workflows, and publish dependencies before public
+workflows while n8n is stopped:
 
 ```powershell
 .\.venv\Scripts\python.exe scripts\validate_n8n_workflows.py
 npx.cmd --yes n8n import:workflow --separate --input="n8n\workflows"
 npx.cmd --yes n8n publish:workflow --id=northstarProcessExpenseService
 npx.cmd --yes n8n publish:workflow --id=northstarRecordDecisionService
+npx.cmd --yes n8n publish:workflow --id=northstarApprovalNotificationService
+npx.cmd --yes n8n publish:workflow --id=northstarApprovalOrchestrator
+npx.cmd --yes n8n publish:workflow --id=northstarApprovalSLAMonitor
 npx.cmd --yes n8n publish:workflow --id=northstarExpenseIntake
 npx.cmd --yes n8n publish:workflow --id=northstarApprovalDecision
 npx.cmd --yes n8n start
 ```
 
 If n8n is already installed globally, the equivalent executable is `n8n.cmd`.
-In the n8n UI, confirm four distinct workflows:
+In the n8n UI, confirm seven distinct workflows:
 
 1. `North Star | 01 Expense Intake` (public).
 2. `North Star | 02 Approval Decision` (public).
 3. `North Star | 10 Process Expense Service` (internal).
 4. `North Star | 11 Record Decision Service` (internal).
-5. Confirm each internal `Runtime Configuration` node contains
+5. `North Star | 20 Approval Orchestrator` (internal durable Wait).
+6. `North Star | 21 Approval Notification Service` (internal adapter).
+7. `North Star | 22 Approval SLA Monitor` (scheduled).
+8. Confirm each relevant internal `Runtime Configuration` node contains
    `http://127.0.0.1:8000`.
-6. Confirm the production webhook URLs end in `/webhook/northstar-expense` and
+9. Confirm notification service contains one sink URL:
+   `http://127.0.0.1:9010/notifications`.
+10. Confirm the production webhook URLs end in `/webhook/northstar-expense` and
    `/webhook/northstar-approval` (not `/webhook-test/`).
 
-If n8n runs in Docker, change only the `api_base_url` field in both internal
-`Runtime Configuration` nodes before publishing:
+If n8n runs in Docker, change only the `api_base_url` field in each relevant
+`Runtime Configuration` node before publishing:
 
 ```text
 http://host.docker.internal:8000
 ```
 
+Also change the notification sink URL to a host/container-reachable address.
 The workflow files contain no credential-dependent, database, or Code nodes.
 
-## 4. Configure MCP (Terminal 3)
+## 5. Configure MCP (Terminal 4)
 
 ```powershell
 $env:NORTHSTAR_API_BASE_URL="http://127.0.0.1:8000"
@@ -131,8 +149,8 @@ $decision = @{expense_id="DEMO-NORMAL-001"; decision="approve"; approver="Financ
 Invoke-RestMethod -Method Post -Uri http://127.0.0.1:5678/webhook/northstar-approval -ContentType "application/json" -Body $decision
 ```
 
-Run the automated end-to-end smoke test after both services and workflows are
-active:
+Run the automated end-to-end smoke test after FastAPI, the notification sink,
+and all workflows are active:
 
 ```powershell
 .\.venv\Scripts\python.exe scripts\smoke_test.py
@@ -143,9 +161,9 @@ persistence, n8n approval, and final-state checks all succeed.
 
 ## 5-Minute Interview Demo
 
-1. Show the two public and two internal n8n workflows. Briefly point out
-   normalization, orchestration context, stable-ID dispatch, runtime
-   configuration, HTTP transport, service envelope, and webhook response.
+1. Show the seven n8n workflows. Briefly point out stable-ID dispatch, the
+   non-blocking orchestrator launch, the real Wait node, notification adapter,
+   and scheduled SLA monitor.
 2. Check FastAPI health with `Invoke-RestMethod
    http://127.0.0.1:8000/health`.
 3. In MCP Inspector, call `submit_expense` with the fields from
@@ -155,11 +173,14 @@ persistence, n8n approval, and final-state checks all succeed.
 5. Call `explain_risk("DEMO-SUSPICIOUS-001")` and show that the explanation is
    deterministic rather than LLM-generated.
 6. Call `list_pending_approvals()` and show the persisted expense.
-7. Call `approve_expense("DEMO-SUSPICIOUS-001", "Finance Director",
+7. Show the Approval Orchestrator waiting execution, then call
+   `approve_expense("DEMO-SUSPICIOUS-001", "Finance Director",
    "Reviewed in interview demo")`.
 8. Call `get_expense_status("DEMO-SUSPICIOUS-001")` and show `APPROVED`, the
    approver, comment, and timestamps.
-9. Optionally run `.\.venv\Scripts\python.exe scripts\smoke_test.py` as a
+9. Show the execution completed and query the local sink for initial and
+    completion notifications.
+10. Optionally run `.\.venv\Scripts\python.exe scripts\smoke_test.py` as a
    single-command proof of the complete n8n-to-SQLite round trip.
 
 ## Troubleshooting
@@ -167,11 +188,11 @@ persistence, n8n approval, and final-state checks all succeed.
 - `Could not connect`: verify FastAPI is on port 8000 and n8n is on port 5678.
 - n8n returns 404: activate the workflow and use `/webhook/`, not
   `/webhook-test/`.
-- n8n cannot reach FastAPI from Docker: set both internal `Runtime
-  Configuration` nodes to `http://host.docker.internal:8000`, republish, and
+- n8n cannot reach FastAPI from Docker: set every relevant internal `Runtime
+  Configuration` node to `http://host.docker.internal:8000`, republish, and
   restart n8n.
-- n8n cannot call FastAPI on Windows: confirm both internal `Runtime
-  Configuration` nodes still use `http://127.0.0.1:8000`.
+- n8n cannot call FastAPI on Windows: confirm every relevant internal `Runtime
+  Configuration` node still uses `http://127.0.0.1:8000`.
 - HTTP 422: inspect FastAPI's response; category, department, date, and amount
   are validated by the existing `ExpenseSubmission` model.
 
@@ -181,5 +202,9 @@ persistence, n8n approval, and final-state checks all succeed.
 - Decision roles are recorded but not identity-verified.
 - Runtime SQLite is appropriate for a small single-machine demo, not a
   multi-worker production deployment.
-- Notifications remain generated payloads; no Gmail, Slack, or Teams credentials
-  are required.
+- `/api/internal/...` is unauthenticated and trusted-network-only in Gate 3A.
+- Wait resume URLs are sensitive capability URLs and must never be shared.
+- The local notification sink is volatile demo infrastructure; no Gmail,
+  Slack, or Teams credentials are required.
+- Automatic resume retry, global error handling, DLQ, and reconciliation are
+  deferred to Gate 3B.

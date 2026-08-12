@@ -22,27 +22,16 @@ def test_n8n_workflows_have_import_ids_and_expected_topology() -> None:
     approval = _workflow("02_approval_decision.json")
     process_service = _workflow("10_process_expense_service.json")
     decision_service = _workflow("11_record_decision_service.json")
+    orchestrator = _workflow("20_approval_orchestrator.json")
 
     assert intake["id"] == "northstarExpenseIntake"
     assert approval["id"] == "northstarApprovalDecision"
     assert process_service["id"] == "northstarProcessExpenseService"
     assert decision_service["id"] == "northstarRecordDecisionService"
-    assert [node["type"] for node in intake["nodes"]] == [
-        "n8n-nodes-base.webhook",
-        "n8n-nodes-base.set",
-        "n8n-nodes-base.set",
-        "n8n-nodes-base.executeWorkflow",
-        "n8n-nodes-base.set",
-        "n8n-nodes-base.respondToWebhook",
-    ]
-    assert [node["type"] for node in approval["nodes"]] == [
-        "n8n-nodes-base.webhook",
-        "n8n-nodes-base.set",
-        "n8n-nodes-base.set",
-        "n8n-nodes-base.executeWorkflow",
-        "n8n-nodes-base.set",
-        "n8n-nodes-base.respondToWebhook",
-    ]
+    assert orchestrator["id"] == "northstarApprovalOrchestrator"
+    assert any(node["type"] == "n8n-nodes-base.wait" for node in orchestrator["nodes"])
+    assert intake["nodes"][0]["type"] == "n8n-nodes-base.webhook"
+    assert approval["nodes"][0]["type"] == "n8n-nodes-base.webhook"
 
     intake_nodes = {node["name"]: node for node in intake["nodes"]}
     approval_nodes = {node["name"]: node for node in approval["nodes"]}
@@ -59,20 +48,20 @@ def test_n8n_workflows_have_import_ids_and_expected_topology() -> None:
     assert "/api/expenses/process" in process_url
     approval_url = decision_nodes["Call FastAPI Record Decision"]["parameters"]["url"]
     assert "$env" not in approval_url
-    assert "$json.api_base_url" in approval_url
-    assert "encodeURIComponent($json.expense_id)" in approval_url
+    assert "api_base_url" in approval_url
+    assert "encodeURIComponent($('Service Input').item.json.expense_id)" in approval_url
     approval_body = decision_nodes["Call FastAPI Record Decision"]["parameters"][
         "jsonBody"
     ]
-    assert approval_body == "={{ $json.payload }}"
+    assert approval_body == "={{ $('Service Input').item.json.payload }}"
 
 
 def test_n8n_workflows_need_no_credentials() -> None:
     for filename in (
-        "01_expense_intake.json",
-        "02_approval_decision.json",
-        "10_process_expense_service.json",
-        "11_record_decision_service.json",
+        "01_expense_intake.json", "02_approval_decision.json",
+        "10_process_expense_service.json", "11_record_decision_service.json",
+        "20_approval_orchestrator.json", "21_approval_notification_service.json",
+        "22_approval_sla_monitor.json",
     ):
         workflow = _workflow(filename)
         assert all("credentials" not in node for node in workflow["nodes"])

@@ -4,16 +4,20 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+import time
+from datetime import datetime
 from typing import Annotated, Literal
 
 from fastapi import FastAPI, Header, HTTPException, Query, Response
-from pydantic import BaseModel, Field
+from pydantic import AnyHttpUrl, BaseModel, Field
 
 from automation.automation_flow import AutomationPipeline, ExpenseSubmission
 from app.db.repositories import (
     DecisionConflictError,
     ExpenseConflictError,
     IdempotencyConflictError,
+    ApprovalTaskNotFoundError,
+    OrchestrationConflictError,
 )
 from app.db.session import DEFAULT_DATABASE_URL
 from app.runtime_store import RuntimeStore
@@ -26,6 +30,30 @@ class DecisionRequest(BaseModel):
     decision: Literal["approve", "reject"]
     approver: str = Field(min_length=1)
     comment: str = ""
+
+
+class OrchestrationRegistrationRequest(BaseModel):
+    n8n_execution_id: str = Field(min_length=1, max_length=64)
+    resume_url: AnyHttpUrl
+
+
+class OrchestrationCompletionRequest(BaseModel):
+    n8n_execution_id: str = Field(min_length=1, max_length=64)
+
+
+class NotificationReserveRequest(BaseModel):
+    notification_type: Literal[
+        "APPROVAL_REQUEST", "REMINDER", "OVERDUE", "ESCALATION", "COMPLETED"
+    ]
+    escalation_level: int = Field(default=0, ge=0, le=10)
+
+
+class NotificationSentRequest(BaseModel):
+    provider_message_id: str | None = Field(default=None, max_length=255)
+
+
+class SLAEvaluationRequest(BaseModel):
+    as_of: datetime | None = None
 
 
 def _public_state(state: dict) -> dict:
@@ -139,6 +167,115 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
         if state is None:
             raise HTTPException(status_code=404, detail="Expense not found")
         return _public_state(state)
+
+    # Trusted-network-only integration endpoints. Authentication is deferred to
+    # the security gate; none of these values are included in public responses.
+    @application.get("/api/internal/approval-tasks/by-expense/{expense_id}")
+    def internal_approval_task(expense_id: str) -> dict:
+        try:
+            return store.orchestration.get_by_expense(expense_id)
+        except ApprovalTaskNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    @application.post(
+        "/api/internal/approval-tasks/by-expense/{expense_id}/orchestration/claim"
+    )
+    def claim_approval_orchestration(expense_id: str) -> dict:
+        try:
+            outcome = store.orchestration.claim_by_expense(expense_id)
+        except ApprovalTaskNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        return {**outcome.task, "launch_required": outcome.launch_required}
+
+    @application.post(
+        "/api/internal/approval-tasks/{task_id}/orchestration/register"
+    )
+    def register_approval_orchestration(
+        task_id: str, body: OrchestrationRegistrationRequest
+    ) -> dict:
+        # Opt-in integration-test hook for the registration/decision race. It
+        # is inert in normal runtimes and bounded to avoid accidental hangs.
+        delay_ms = max(
+            0,
+            min(
+                int(
+                    os.getenv(
+                        "NORTHSTAR_TEST_ORCHESTRATION_REGISTRATION_DELAY_MS", "0"
+                    )
+                ),
+                5000,
+            ),
+        )
+        if delay_ms > 0:
+            time.sleep(delay_ms / 1000)
+        try:
+            outcome = store.orchestration.register(
+                task_id, body.n8n_execution_id, str(body.resume_url)
+            )
+        except ApprovalTaskNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except OrchestrationConflictError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        return {
+            **outcome.task,
+            "should_wait": outcome.should_wait,
+            "replayed": outcome.replayed,
+        }
+
+    @application.post(
+        "/api/internal/approval-tasks/{task_id}/orchestration/complete"
+    )
+    def complete_approval_orchestration(
+        task_id: str, body: OrchestrationCompletionRequest
+    ) -> dict:
+        try:
+            return store.orchestration.complete(task_id, body.n8n_execution_id)
+        except ApprovalTaskNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except OrchestrationConflictError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @application.get("/api/internal/approval-tasks/pending")
+    def pending_approval_tasks() -> list[dict]:
+        return store.orchestration.pending()
+
+    @application.post(
+        "/api/internal/approval-tasks/sla/notifications/reserve"
+    )
+    def reserve_sla_notifications(body: SLAEvaluationRequest) -> dict:
+        return {
+            "notifications": store.orchestration.reserve_sla_notifications(
+                now=body.as_of
+            )
+        }
+
+    @application.post(
+        "/api/internal/approval-tasks/{task_id}/notifications/reserve"
+    )
+    def reserve_approval_notification(
+        task_id: str, body: NotificationReserveRequest
+    ) -> dict:
+        try:
+            return store.orchestration.reserve_notification(
+                task_id,
+                body.notification_type,
+                escalation_level=body.escalation_level,
+            )
+        except ApprovalTaskNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    @application.post(
+        "/api/internal/approval-notifications/{notification_id}/sent"
+    )
+    def mark_approval_notification_sent(
+        notification_id: str, body: NotificationSentRequest
+    ) -> dict:
+        try:
+            return store.orchestration.mark_notification_sent(
+                notification_id, body.provider_message_id
+            )
+        except ApprovalTaskNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     return application
 

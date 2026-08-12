@@ -52,12 +52,48 @@
     },
     {
       "parameters": {
+        "conditions": {
+          "options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2},
+          "conditions": [{"id": "process-review-required", "leftValue": "={{ String(Number($json.statusCode) === 200 && ['PENDING_APPROVAL', 'ESCALATED'].includes($json.body?.status)) }}", "rightValue": "true", "operator": {"type": "string", "operation": "equals"}}],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "10000000-0000-4000-8000-000000000001",
+      "name": "Approval Orchestration Required",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [240, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Runtime Configuration').item.json.api_base_url + '/api/internal/approval-tasks/by-expense/' + encodeURIComponent($('Call FastAPI Process Expense').item.json.body.expense_id) + '/orchestration/claim' }}",
+        "sendHeaders": true,
+        "headerParameters": {"parameters": [{"name": "Content-Type", "value": "application/json"}]},
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ ({}) }}",
+        "options": {"timeout": 5000, "response": {"response": {"fullResponse": true, "neverError": true, "responseFormat": "json"}}}
+      },
+      "id": "10000000-0000-4000-8000-000000000002",
+      "name": "Claim Approval Orchestration",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, -120]
+    },
+    {
+      "parameters": {
         "assignments": {"assignments": [
-          {"id": "process-ok", "name": "ok", "value": "={{ Number($json.statusCode) === 200 }}", "type": "boolean"},
-          {"id": "process-status", "name": "status_code", "value": "={{ [200, 409, 422].includes(Number($json.statusCode)) ? Number($json.statusCode) : 502 }}", "type": "number"},
+          {"id": "process-ok", "name": "ok", "value": "={{ Number($('Call FastAPI Process Expense').item.json.statusCode) === 200 }}", "type": "boolean"},
+          {"id": "process-status", "name": "status_code", "value": "={{ [200, 409, 422].includes(Number($('Call FastAPI Process Expense').item.json.statusCode)) ? Number($('Call FastAPI Process Expense').item.json.statusCode) : 502 }}", "type": "number"},
           {"id": "process-correlation", "name": "correlation_id", "value": "={{ $('Service Input').item.json.correlation_id }}", "type": "string"},
-          {"id": "process-data", "name": "data", "value": "={{ [200, 409, 422].includes(Number($json.statusCode)) && $json.body ? $json.body : null }}", "type": "object"},
-          {"id": "process-error", "name": "error", "value": "={{ [200, 409, 422].includes(Number($json.statusCode)) ? null : ({ message: 'Upstream service unavailable' }) }}", "type": "object"}
+          {"id": "process-data", "name": "data", "value": "={{ [200, 409, 422].includes(Number($('Call FastAPI Process Expense').item.json.statusCode)) && $('Call FastAPI Process Expense').item.json.body ? $('Call FastAPI Process Expense').item.json.body : null }}", "type": "object"},
+          {"id": "process-error", "name": "error", "value": "={{ [200, 409, 422].includes(Number($('Call FastAPI Process Expense').item.json.statusCode)) ? null : ({ message: 'Upstream service unavailable' }) }}", "type": "object"},
+          {"id": "process-launch", "name": "launch_required", "value": "={{ $json.body?.launch_required === true }}", "type": "boolean"},
+          {"id": "process-task", "name": "task_id", "value": "={{ $json.body?.task_id || '' }}", "type": "string"},
+          {"id": "process-expense", "name": "expense_id", "value": "={{ $('Call FastAPI Process Expense').item.json.body?.expense_id || '' }}", "type": "string"}
         ]},
         "options": {}
       },
@@ -65,14 +101,16 @@
       "name": "Return Service Envelope",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [240, 0]
+      "position": [720, 0]
     }
   ],
   "pinData": {},
   "connections": {
     "Service Input": {"main": [[{"node": "Runtime Configuration", "type": "main", "index": 0}]]},
     "Runtime Configuration": {"main": [[{"node": "Call FastAPI Process Expense", "type": "main", "index": 0}]]},
-    "Call FastAPI Process Expense": {"main": [[{"node": "Return Service Envelope", "type": "main", "index": 0}]]}
+    "Call FastAPI Process Expense": {"main": [[{"node": "Approval Orchestration Required", "type": "main", "index": 0}]]},
+    "Approval Orchestration Required": {"main": [[{"node": "Claim Approval Orchestration", "type": "main", "index": 0}], [{"node": "Return Service Envelope", "type": "main", "index": 0}]]},
+    "Claim Approval Orchestration": {"main": [[{"node": "Return Service Envelope", "type": "main", "index": 0}]]}
   },
   "active": false,
   "settings": {"executionOrder": "v1"},

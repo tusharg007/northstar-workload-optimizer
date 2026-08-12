@@ -10,6 +10,7 @@ from sqlalchemy import inspect, text
 from sqlalchemy.engine import make_url
 
 from app.db.repositories.workflows import ProcessOutcome, WorkflowRepository
+from app.db.repositories.orchestration import ApprovalOrchestrationRepository
 from app.db.session import Database, normalize_database_url
 
 
@@ -21,6 +22,7 @@ class RuntimeStore:
         is_sqlite = make_url(resolved).get_backend_name() == "sqlite"
         self.database = Database(resolved, create_schema=is_sqlite)
         self.repository = WorkflowRepository(self.database)
+        self.orchestration = ApprovalOrchestrationRepository(self.database)
         self.db_path = Path(make_url(resolved).database) if is_sqlite else None
         if is_sqlite:
             self._bootstrap_legacy_rows()

@@ -8,6 +8,9 @@ Tested with n8n **2.22.6**.
 | `workflows/02_approval_decision.json` | Public | `northstarRecordDecisionService` |
 | `workflows/10_process_expense_service.json` | Internal | FastAPI process endpoint |
 | `workflows/11_record_decision_service.json` | Internal | FastAPI decision endpoint |
+| `workflows/20_approval_orchestrator.json` | Internal | Durable Wait/resume approval lifecycle |
+| `workflows/21_approval_notification_service.json` | Internal | Configurable HTTP notification adapter |
+| `workflows/22_approval_sla_monitor.json` | Scheduled | Due-notification reservation and dispatch |
 
 Public contracts are `POST /webhook/northstar-expense` and
 `POST /webhook/northstar-approval`.
@@ -24,12 +27,16 @@ Publish internal workflows before public workflows, then start n8n:
 ```powershell
 npx.cmd --yes n8n publish:workflow --id=northstarProcessExpenseService
 npx.cmd --yes n8n publish:workflow --id=northstarRecordDecisionService
+npx.cmd --yes n8n publish:workflow --id=northstarApprovalNotificationService
+npx.cmd --yes n8n publish:workflow --id=northstarApprovalOrchestrator
+npx.cmd --yes n8n publish:workflow --id=northstarApprovalSLAMonitor
 npx.cmd --yes n8n publish:workflow --id=northstarExpenseIntake
 npx.cmd --yes n8n publish:workflow --id=northstarApprovalDecision
 npx.cmd --yes n8n start
 ```
 
-The local FastAPI base URL is set once in each internal workflow's `Runtime
-Configuration` node. The source-controlled value is
-`http://127.0.0.1:8000`. Do not add `$env`, secrets, credentials, or database
-nodes to these exports.
+The local FastAPI base URL is set once in each relevant internal workflow's
+`Runtime Configuration` node. The notification service also defines its sink
+once as `http://127.0.0.1:9010/notifications`. Do not add `$env`, secrets,
+credentials, or database nodes to these exports. The Wait resume URL is an
+internal capability URL: never expose it in a public response or notification.

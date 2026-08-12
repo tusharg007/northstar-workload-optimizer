@@ -166,6 +166,8 @@ The functional local demo adds a small vertical automation path while preserving
 the existing analytics assets:
 
 - **n8n** owns workflow orchestration and the intake/approval webhooks.
+- A real n8n **Wait/resume** execution owns the durable human workflow
+  lifecycle, while PostgreSQL remains the source of financial truth.
 - **FastAPI** exposes the existing Python expense validation, anomaly, routing,
   and notification logic as a domain service.
 - **SQLite** stores durable demo runtime state in `data/northstar_runtime.db`,
@@ -174,6 +176,9 @@ the existing analytics assets:
   submit, status, pending approval, explanation, and approval tools without
   requiring an LLM in the service itself.
 - The existing **ETL and Power BI** assets remain the analytics layer.
+- A scheduled approval SLA monitor emits deduplicated reminder, overdue, and
+  escalation notifications through a configurable local HTTP adapter.
 
 See [DEMO.md](DEMO.md) for the shortest Windows setup, import steps, commands,
-and five-minute interview sequence.
+and five-minute interview sequence. Gate 3A design and runtime proof are in
+[docs/architecture/G3A_DURABLE_HITL_SLA.md](docs/architecture/G3A_DURABLE_HITL_SLA.md).
