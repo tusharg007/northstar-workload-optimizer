@@ -1,0 +1,14 @@
+{
+  "expense_id": "DEMO-SUSPICIOUS-001",
+  "employee_id": "EMP-042",
+  "employee_name": "Jordan Lee",
+  "department": "IT",
+  "transaction_date": "2025-01-18",
+  "merchant": "Cloud Vendor",
+  "category": "Software & Subscriptions",
+  "description": "DUPLICATE annual platform renewal",
+  "amount": 3000.0,
+  "currency": "USD",
+  "payment_method": "Corporate Card",
+  "receipt_attached": false
+}

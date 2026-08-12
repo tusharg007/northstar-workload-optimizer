@@ -1,0 +1,58 @@
+{
+  "id": "northstarApprovalDecision",
+  "name": "North Star - Approval Decision",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "northstar-approval",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "df05824f-ae92-446f-be43-56bdd41b0aa9",
+      "name": "Approval Decision Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-360, 0],
+      "webhookId": "northstar-approval"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'http://127.0.0.1:8000/api/expenses/' + encodeURIComponent($json.body.expense_id) + '/decision' }}",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ decision: $json.body.decision, approver: $json.body.approver, comment: $json.body.comment || '' }) }}",
+        "options": {}
+      },
+      "id": "bb810860-b0bc-4cab-ac67-fbdc7fc36bee",
+      "name": "Record Decision in FastAPI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-80, 0]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "7e61b1f5-8bfe-458b-9e3c-66e4759ee47a",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [200, 0]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Approval Decision Webhook": {"main": [[{"node": "Record Decision in FastAPI", "type": "main", "index": 0}]]},
+    "Record Decision in FastAPI": {"main": [[{"node": "Respond to Webhook", "type": "main", "index": 0}]]}
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "versionId": "b57dab9c-c65f-4da2-a034-691091773d3a",
+  "meta": {"templateCredsSetupCompleted": true},
+  "tags": []
+}

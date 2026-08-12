@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+.pytest_cache/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Distribution
+dist/
+build/
+*.egg-info/
+
+# Environment
+.env
+.env.*
+!.env.example
+*.log
+
+# Local n8n state
+.n8n/
+n8n/.n8n/
+n8n-data/
+
+# Durable local demo state (created automatically)
+data/northstar_runtime*.db
+
+# SQLite transient/test files
+tests/*.db
+test-*.db
+*.db-journal
+*.db-shm
+*.db-wal

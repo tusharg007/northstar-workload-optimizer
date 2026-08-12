@@ -1,0 +1,14 @@
+{
+  "expense_id": "DEMO-INVALID-001",
+  "employee_id": "EMP-999",
+  "employee_name": "Invalid Example",
+  "department": "Engineering",
+  "transaction_date": "not-a-date",
+  "merchant": "Unknown",
+  "category": "Unsupported Category",
+  "description": "Invalid payload demonstration",
+  "amount": -10.0,
+  "currency": "USD",
+  "payment_method": "Corporate Card",
+  "receipt_attached": false
+}

@@ -1,0 +1,14 @@
+{
+  "expense_id": "DEMO-NORMAL-001",
+  "employee_id": "EMP-101",
+  "employee_name": "Avery Morgan",
+  "department": "Operations",
+  "transaction_date": "2025-01-15",
+  "merchant": "Regional Air",
+  "category": "Travel",
+  "description": "Client site travel",
+  "amount": 640.0,
+  "currency": "USD",
+  "payment_method": "Corporate Card",
+  "receipt_attached": true
+}

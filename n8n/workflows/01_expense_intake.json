@@ -1,0 +1,121 @@
+{
+  "id": "northstarExpenseIntake",
+  "name": "North Star - Expense Intake",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "northstar-expense",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "b482537a-1dba-4684-8b13-1fe23c14b7dd",
+      "name": "Expense Intake Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-720, 0],
+      "webhookId": "northstar-expense"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {"id": "1", "name": "expense_id", "value": "={{ $json.body.expense_id }}", "type": "string"},
+            {"id": "2", "name": "employee_id", "value": "={{ $json.body.employee_id }}", "type": "string"},
+            {"id": "3", "name": "employee_name", "value": "={{ $json.body.employee_name }}", "type": "string"},
+            {"id": "4", "name": "department", "value": "={{ $json.body.department }}", "type": "string"},
+            {"id": "5", "name": "transaction_date", "value": "={{ $json.body.transaction_date }}", "type": "string"},
+            {"id": "6", "name": "merchant", "value": "={{ $json.body.merchant }}", "type": "string"},
+            {"id": "7", "name": "category", "value": "={{ $json.body.category }}", "type": "string"},
+            {"id": "8", "name": "description", "value": "={{ $json.body.description || '' }}", "type": "string"},
+            {"id": "9", "name": "amount", "value": "={{ $json.body.amount }}", "type": "number"},
+            {"id": "10", "name": "currency", "value": "={{ $json.body.currency || 'USD' }}", "type": "string"},
+            {"id": "11", "name": "payment_method", "value": "={{ $json.body.payment_method || 'Corporate Card' }}", "type": "string"},
+            {"id": "12", "name": "receipt_attached", "value": "={{ $json.body.receipt_attached || false }}", "type": "boolean"}
+          ]
+        },
+        "options": {}
+      },
+      "id": "d4cd5dd1-8248-4da1-8f4a-d89b9f8f055b",
+      "name": "Normalize Expense",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [-480, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:8000/api/expenses/process",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "0bb377c8-dd99-4bfb-a512-b3a56510820f",
+      "name": "Process Expense in FastAPI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-240, 0]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2},
+                "conditions": [
+                  {
+                    "id": "201fef2f-5c43-4602-b280-eb45fe31ee43",
+                    "leftValue": "={{ $json.status }}",
+                    "rightValue": "AUTO_APPROVED",
+                    "operator": {"type": "string", "operation": "equals"}
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Auto approved"
+            }
+          ]
+        },
+        "options": {"fallbackOutput": "extra"}
+      },
+      "id": "45c97e73-c783-4b28-a0f1-cc8a2bbc93c0",
+      "name": "Switch on Status",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "fe6aa6ef-cc2e-4f0c-8213-700ed3e053e0",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [280, 0]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Expense Intake Webhook": {"main": [[{"node": "Normalize Expense", "type": "main", "index": 0}]]},
+    "Normalize Expense": {"main": [[{"node": "Process Expense in FastAPI", "type": "main", "index": 0}]]},
+    "Process Expense in FastAPI": {"main": [[{"node": "Switch on Status", "type": "main", "index": 0}]]},
+    "Switch on Status": {
+      "main": [
+        [{"node": "Respond to Webhook", "type": "main", "index": 0}],
+        [{"node": "Respond to Webhook", "type": "main", "index": 0}]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "versionId": "25810887-a699-40bd-847d-ab615b6bcd59",
+  "meta": {"templateCredsSetupCompleted": true},
+  "tags": []
+}
