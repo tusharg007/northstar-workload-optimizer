@@ -109,6 +109,9 @@
       "parameters": {
         "assignments": {"assignments": [
           {"id": "20-notification", "name": "notification_id", "value": "={{ $json.body.notification_id }}", "type": "string"},
+          {"id": "20-notification-outbox", "name": "outbox_event_id", "value": "={{ $json.body.outbox_event_id }}", "type": "string"},
+          {"id": "20-notification-worker", "name": "worker_id", "value": "={{ 'n8n-immediate-notification-' + $execution.id }}", "type": "string"},
+          {"id": "20-notification-claimed", "name": "already_claimed", "value": false, "type": "boolean"},
           {"id": "20-notification-task", "name": "task_id", "value": "={{ $json.body.task_id }}", "type": "string"},
           {"id": "20-notification-type", "name": "type", "value": "={{ $json.body.type }}", "type": "string"},
           {"id": "20-notification-level", "name": "escalation_level", "value": "={{ $json.body.escalation_level }}", "type": "number"},
@@ -241,6 +244,9 @@
       "parameters": {
         "assignments": {"assignments": [
           {"id": "20-complete-notification", "name": "notification_id", "value": "={{ $json.body.notification_id }}", "type": "string"},
+          {"id": "20-complete-outbox", "name": "outbox_event_id", "value": "={{ $json.body.outbox_event_id }}", "type": "string"},
+          {"id": "20-complete-worker", "name": "worker_id", "value": "={{ 'n8n-immediate-notification-' + $execution.id }}", "type": "string"},
+          {"id": "20-complete-claimed", "name": "already_claimed", "value": false, "type": "boolean"},
           {"id": "20-complete-task", "name": "task_id", "value": "={{ $json.body.task_id }}", "type": "string"},
           {"id": "20-complete-type", "name": "type", "value": "={{ $json.body.type }}", "type": "string"},
           {"id": "20-complete-level", "name": "escalation_level", "value": "={{ $json.body.escalation_level }}", "type": "number"},
@@ -313,7 +319,7 @@
     "Send Completion Notification": {"main": [[{"node": "Orchestration Complete", "type": "main", "index": 0}]]}
   },
   "active": false,
-  "settings": {"executionOrder": "v1"},
+  "settings": {"executionOrder": "v1", "errorWorkflow": "northstarGlobalErrorHandler"},
   "versionId": "20000000-0000-4000-8000-000000000099",
   "meta": {"templateCredsSetupCompleted": true},
   "tags": []

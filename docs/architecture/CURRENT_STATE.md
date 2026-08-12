@@ -1,6 +1,6 @@
 # North Star Current Architecture Baseline
 
-Status: **CURRENT IMPLEMENTED** after Gate 3A verification on 2026-08-12.
+Status: **CURRENT IMPLEMENTED** after Gate 3B verification on 2026-08-13.
 
 This document records the system that exists today. It is not the target v2
 architecture. Items under **PLANNED FOR V2** are boundaries only; the detailed
@@ -12,7 +12,7 @@ sequence is in `V2_PLAN.md`.
 flowchart LR
     Client["Client or MCP Inspector"]
     MCP["Python MCP server\nstdio, optional demo interface"]
-    N8N["n8n on :5678\norchestration, Wait/resume, SLA schedule"]
+    N8N["n8n on :5678\norchestration, Wait/resume, SLA, outbox dispatch"]
     Notify["HTTP notification adapter\nlocal sink on :9010"]
     API["FastAPI on :8000\nHTTP boundary"]
     Domain["AutomationPipeline\ndeterministic validation, anomaly scoring, routing"]
@@ -120,7 +120,9 @@ target durable source of truth; the compatibility default is
 
 Alembic revision `20260812_0001` creates the original five operational tables.
 Revision `20260812_0002` adds orchestration metadata to `approval_tasks` and the
-`approval_notifications` table. JSON uses JSONB on PostgreSQL and JSON on
+`approval_notifications` table. Revision `20260813_0003` adds
+`outbox_events`, append-only `outbox_delivery_attempts`, and sanitized
+`workflow_failures`. JSON uses JSONB on PostgreSQL and JSON on
 SQLite. Money is `Numeric(18,2)`. Application timestamps are normalized to
 aware UTC values.
 
@@ -162,7 +164,7 @@ is analytical technical debt, not a Gate 0 runtime change.
 
 ## n8n workflows
 
-Seven inactive, source-controlled workflow exports form the verified control
+Ten inactive, source-controlled workflow exports form the verified control
 plane. Public workflows retain the two frozen webhook paths. Review-required
 submission claims and starts one non-blocking approval child. The child stores
 its execution and Wait capability in PostgreSQL, sends the initial notification,
@@ -179,6 +181,9 @@ service envelopes.
 | `n8n/workflows/20_approval_orchestrator.json` | Internal | Durable Wait/resume lifecycle |
 | `n8n/workflows/21_approval_notification_service.json` | Internal | Configurable HTTP notification adapter |
 | `n8n/workflows/22_approval_sla_monitor.json` | Scheduled | Reserve and dispatch due notifications |
+| `n8n/workflows/23_reliability_dispatcher.json` | Scheduled/internal | Reconcile and lease outbox deliveries |
+| `n8n/workflows/24_dead_letter_replay.json` | Internal | Explicit dead-letter replay |
+| `n8n/workflows/99_global_error_handler.json` | Error Trigger | Sanitized workflow incident capture |
 
 Each internal `Runtime Configuration` node defines the local API base once as
 `http://127.0.0.1:8000`; `$env` remains absent. Expense correlation and
@@ -187,11 +192,15 @@ are preserved; FastAPI 5xx, timeout, and connection failures become safe JSON
 502 responses. The public response always includes JSON and
 `X-Correlation-ID`.
 
-The seven exports were imported, listed, published, and executed using an
+The ten exports were imported, listed, published, and executed using an
 isolated n8n 2.22.6 profile. Parent-to-child ID references remained stable. A
 waiting execution survived a clean n8n restart using the same isolated state
-directory and resumed successfully. See `G3A_DURABLE_HITL_SLA.md` for Wait,
-race, SLA, notification, and PostgreSQL evidence.
+directory and resumed successfully. Required integration intents now commit in
+the same PostgreSQL transaction as decisions and notification reservations.
+Workflow 23 provides leased at-least-once recovery, Workflow 24 provides
+explicit DLQ replay, and Workflow 99 captures unexpected n8n failures. See
+`G3B_RELIABILITY_OUTBOX.md` for crash-window, concurrency, replay, and error
+handler evidence.
 
 ## MCP status
 
@@ -251,8 +260,8 @@ state, and exits nonzero with a clear service/HTTP/timeout error on failure.
   reprocessing contract exists yet.
 - Internal orchestration endpoints have no authentication and are
   trusted-network-only. Wait resume URLs are sensitive capability URLs.
-- There is no retry ledger, dead-letter path, resume reconciliation, or
-  transactional workflow outbox; those remain Gate 3B work.
+- External delivery is at-least-once. Real notification providers need native
+  idempotency or a deduplicating adapter; exactly-once delivery is not claimed.
 - SLA defaults are configurable operational demo timing, not enterprise policy.
 - The included notification sink is volatile test/demo infrastructure; no
   external messaging credentials are needed.
@@ -268,9 +277,9 @@ state, and exits nonzero with a clear service/HTTP/timeout error on failure.
 
 ## PLANNED FOR V2 (not implemented)
 
-Gate 3B retries, global error handling, DLQ/replay, resume reconciliation, and
-transactional outbox remain planned. Governed context and provenance,
-evaluations, Metabase, optional governed MCP and voice interfaces, Docker
-Compose, and CI also remain later work. PostgreSQL operational persistence and
-Gate 3A durable HITL are runtime-verified; production authentication, backups,
-monitoring, and release packaging remain later-gate concerns.
+Governed context and provenance, policy/glossary governance, evaluations,
+Metabase, optional governed MCP and voice interfaces, Docker Compose, and CI
+remain later work. PostgreSQL persistence, durable HITL, transactional outbox,
+leases, DLQ/replay, reconciliation, and global n8n error handling are
+runtime-verified. Production authentication, backups, monitoring, and release
+packaging remain later-gate concerns.

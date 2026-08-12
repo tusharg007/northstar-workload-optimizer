@@ -113,7 +113,7 @@
     "Claim Approval Orchestration": {"main": [[{"node": "Return Service Envelope", "type": "main", "index": 0}]]}
   },
   "active": false,
-  "settings": {"executionOrder": "v1"},
+  "settings": {"executionOrder": "v1", "errorWorkflow": "northstarGlobalErrorHandler"},
   "versionId": "69dfaf47-d81a-43ce-9ad5-0832289f265b",
   "meta": {"templateCredsSetupCompleted": true},
   "tags": []

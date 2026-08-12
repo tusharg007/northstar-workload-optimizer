@@ -25,6 +25,7 @@ from app.db.models import (
 )
 from app.db.repositories.approvals import ApprovalRepository
 from app.db.repositories.expenses import ExpenseRepository
+from app.db.repositories.reliability import OutboxRepository
 from app.db.session import Database
 
 
@@ -349,6 +350,16 @@ class WorkflowRepository:
                     },
                     created_at=now,
                 )
+            )
+            OutboxRepository.ensure_event(
+                session,
+                event_type=OutboxRepository.EVENT_RESUME,
+                aggregate_type="approval_task",
+                aggregate_id=task.task_id,
+                delivery_key=f"approval-resume:{task.task_id}",
+                payload={"approval_task_id": task.task_id, "expense_id": expense_id},
+                correlation_id=run.correlation_id,
+                now=now,
             )
             session.flush()
             return ExpenseRepository.to_state(expense)

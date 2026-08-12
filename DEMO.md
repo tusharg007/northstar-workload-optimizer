@@ -57,15 +57,18 @@ This test/demo adapter keeps notifications only in memory. Check it with
 
 ## 4. Start and Configure n8n (Terminal 3)
 
-Validate, import all seven workflows, and publish dependencies before public
+Validate, import all ten workflows, and publish dependencies before public
 workflows while n8n is stopped:
 
 ```powershell
 .\.venv\Scripts\python.exe scripts\validate_n8n_workflows.py
 npx.cmd --yes n8n import:workflow --separate --input="n8n\workflows"
+npx.cmd --yes n8n publish:workflow --id=northstarGlobalErrorHandler
+npx.cmd --yes n8n publish:workflow --id=northstarApprovalNotificationService
+npx.cmd --yes n8n publish:workflow --id=northstarReliabilityDispatcher
+npx.cmd --yes n8n publish:workflow --id=northstarDeadLetterReplay
 npx.cmd --yes n8n publish:workflow --id=northstarProcessExpenseService
 npx.cmd --yes n8n publish:workflow --id=northstarRecordDecisionService
-npx.cmd --yes n8n publish:workflow --id=northstarApprovalNotificationService
 npx.cmd --yes n8n publish:workflow --id=northstarApprovalOrchestrator
 npx.cmd --yes n8n publish:workflow --id=northstarApprovalSLAMonitor
 npx.cmd --yes n8n publish:workflow --id=northstarExpenseIntake
@@ -74,7 +77,7 @@ npx.cmd --yes n8n start
 ```
 
 If n8n is already installed globally, the equivalent executable is `n8n.cmd`.
-In the n8n UI, confirm seven distinct workflows:
+In the n8n UI, confirm ten distinct workflows:
 
 1. `North Star | 01 Expense Intake` (public).
 2. `North Star | 02 Approval Decision` (public).
@@ -83,11 +86,14 @@ In the n8n UI, confirm seven distinct workflows:
 5. `North Star | 20 Approval Orchestrator` (internal durable Wait).
 6. `North Star | 21 Approval Notification Service` (internal adapter).
 7. `North Star | 22 Approval SLA Monitor` (scheduled).
-8. Confirm each relevant internal `Runtime Configuration` node contains
+8. `North Star | 23 Reliability Dispatcher` (scheduled/internal).
+9. `North Star | 24 Dead Letter Replay` (internal only; no public webhook).
+10. `North Star | 99 Global Error Handler` (Error Trigger).
+11. Confirm each relevant internal `Runtime Configuration` node contains
    `http://127.0.0.1:8000`.
-9. Confirm notification service contains one sink URL:
+12. Confirm notification service contains one sink URL:
    `http://127.0.0.1:9010/notifications`.
-10. Confirm the production webhook URLs end in `/webhook/northstar-expense` and
+13. Confirm the production webhook URLs end in `/webhook/northstar-expense` and
    `/webhook/northstar-approval` (not `/webhook-test/`).
 
 If n8n runs in Docker, change only the `api_base_url` field in each relevant
@@ -161,9 +167,10 @@ persistence, n8n approval, and final-state checks all succeed.
 
 ## 5-Minute Interview Demo
 
-1. Show the seven n8n workflows. Briefly point out stable-ID dispatch, the
+1. Show the ten n8n workflows. Briefly point out stable-ID dispatch, the
    non-blocking orchestrator launch, the real Wait node, notification adapter,
-   and scheduled SLA monitor.
+   scheduled SLA monitor, transactional-outbox dispatcher, internal DLQ replay,
+   and Error Trigger handler.
 2. Check FastAPI health with `Invoke-RestMethod
    http://127.0.0.1:8000/health`.
 3. In MCP Inspector, call `submit_expense` with the fields from
@@ -207,4 +214,5 @@ persistence, n8n approval, and final-state checks all succeed.
 - The local notification sink is volatile demo infrastructure; no Gmail,
   Slack, or Teams credentials are required.
 - Automatic resume retry, global error handling, DLQ, and reconciliation are
-  deferred to Gate 3B.
+  implemented through the Gate 3B transactional outbox. Provider-level
+  exactly-once delivery is not claimed.

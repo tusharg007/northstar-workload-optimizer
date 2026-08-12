@@ -212,3 +212,75 @@ class ApprovalNotification(Base):
     provider_message_id: Mapped[str | None] = mapped_column(
         String(255), nullable=True
     )
+
+
+class OutboxEvent(Base):
+    __tablename__ = "outbox_events"
+    __table_args__ = (
+        UniqueConstraint("delivery_key", name="uq_outbox_events_delivery_key"),
+        Index("ix_outbox_events_due", "status", "next_attempt_at"),
+        Index("ix_outbox_events_aggregate", "aggregate_type", "aggregate_id"),
+        Index("ix_outbox_events_lease_expires_at", "lease_expires_at"),
+    )
+
+    outbox_event_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    event_type: Mapped[str] = mapped_column(String(64))
+    aggregate_type: Mapped[str] = mapped_column(String(64))
+    aggregate_id: Mapped[str] = mapped_column(String(128))
+    correlation_id: Mapped[str | None] = mapped_column(String(128), index=True)
+    delivery_key: Mapped[str] = mapped_column(String(255))
+    payload: Mapped[dict] = mapped_column(JSON_TYPE)
+    status: Mapped[str] = mapped_column(String(32), default="PENDING")
+    attempt_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    max_attempts: Mapped[int] = mapped_column(Integer, default=4, server_default="4")
+    next_attempt_at: Mapped[datetime] = mapped_column(UTCDateTime(), index=True)
+    lease_owner: Mapped[str | None] = mapped_column(String(128))
+    lease_acquired_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
+    lease_expires_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
+    last_error_category: Mapped[str | None] = mapped_column(String(64))
+    last_error_message: Mapped[str | None] = mapped_column(String(500))
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utc_now, server_default=func.now())
+    delivered_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
+    dead_lettered_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
+    replay_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utc_now, onupdate=utc_now, server_default=func.now())
+
+
+class OutboxDeliveryAttempt(Base):
+    __tablename__ = "outbox_delivery_attempts"
+    __table_args__ = (
+        UniqueConstraint("outbox_event_id", "attempt_number", name="uq_outbox_attempt_number"),
+    )
+
+    attempt_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    outbox_event_id: Mapped[str] = mapped_column(String(36), ForeignKey("outbox_events.outbox_event_id", ondelete="CASCADE"), index=True)
+    attempt_number: Mapped[int] = mapped_column(Integer)
+    worker_id: Mapped[str] = mapped_column(String(128))
+    started_at: Mapped[datetime] = mapped_column(UTCDateTime())
+    completed_at: Mapped[datetime] = mapped_column(UTCDateTime())
+    outcome: Mapped[str] = mapped_column(String(32))
+    status_code: Mapped[int | None] = mapped_column(Integer)
+    error_category: Mapped[str | None] = mapped_column(String(64))
+    safe_error_message: Mapped[str | None] = mapped_column(String(500))
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utc_now, server_default=func.now())
+
+
+class WorkflowFailure(Base):
+    __tablename__ = "workflow_failures"
+    __table_args__ = (
+        UniqueConstraint("workflow_id", "execution_id", name="uq_workflow_failure_execution"),
+    )
+
+    failure_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workflow_id: Mapped[str] = mapped_column(String(128))
+    workflow_name: Mapped[str] = mapped_column(String(255))
+    execution_id: Mapped[str] = mapped_column(String(64))
+    failed_node: Mapped[str | None] = mapped_column(String(255))
+    error_class: Mapped[str | None] = mapped_column(String(128))
+    safe_message: Mapped[str] = mapped_column(String(500))
+    correlation_id: Mapped[str | None] = mapped_column(String(128), index=True)
+    expense_id: Mapped[str | None] = mapped_column(String(128), index=True)
+    first_seen_at: Mapped[datetime] = mapped_column(UTCDateTime())
+    last_seen_at: Mapped[datetime] = mapped_column(UTCDateTime())
+    occurrence_count: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
+    status: Mapped[str] = mapped_column(String(32), default="OPEN", server_default="OPEN")

@@ -57,13 +57,8 @@ def test_n8n_workflows_have_import_ids_and_expected_topology() -> None:
 
 
 def test_n8n_workflows_need_no_credentials() -> None:
-    for filename in (
-        "01_expense_intake.json", "02_approval_decision.json",
-        "10_process_expense_service.json", "11_record_decision_service.json",
-        "20_approval_orchestrator.json", "21_approval_notification_service.json",
-        "22_approval_sla_monitor.json",
-    ):
-        workflow = _workflow(filename)
+    for path in (PROJECT_DIR / "n8n" / "workflows").glob("*.json"):
+        workflow = _workflow(path.name)
         assert all("credentials" not in node for node in workflow["nodes"])
         assert "$env" not in json.dumps(workflow)
 

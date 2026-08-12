@@ -53,7 +53,10 @@ def test_schema_creation_and_repository_json_round_trip(
     assert set(inspect(store.database.engine).get_table_names()) == {
         "approval_decisions",
         "approval_notifications",
-        "approval_tasks",
+            "approval_tasks",
+            "outbox_events",
+            "outbox_delivery_attempts",
+            "workflow_failures",
         "expenses",
         "workflow_events",
         "workflow_runs",

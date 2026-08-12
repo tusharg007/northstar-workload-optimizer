@@ -51,6 +51,9 @@
       "parameters": {
         "assignments": {"assignments": [
           {"id": "22-notification", "name": "notification_id", "value": "={{ $json.notification.notification_id }}", "type": "string"},
+          {"id": "22-outbox", "name": "outbox_event_id", "value": "={{ $json.notification.outbox_event_id }}", "type": "string"},
+          {"id": "22-worker", "name": "worker_id", "value": "={{ 'n8n-immediate-sla-' + $execution.id }}", "type": "string"},
+          {"id": "22-claimed", "name": "already_claimed", "value": false, "type": "boolean"},
           {"id": "22-task", "name": "task_id", "value": "={{ $json.notification.task_id }}", "type": "string"},
           {"id": "22-type", "name": "type", "value": "={{ $json.notification.type }}", "type": "string"},
           {"id": "22-level", "name": "escalation_level", "value": "={{ $json.notification.escalation_level }}", "type": "number"},
@@ -94,7 +97,7 @@
     "Prepare SLA Notification": {"main": [[{"node": "Send SLA Notification", "type": "main", "index": 0}]]}
   },
   "active": false,
-  "settings": {"executionOrder": "v1", "timezone": "UTC"},
+  "settings": {"executionOrder": "v1", "timezone": "UTC", "errorWorkflow": "northstarGlobalErrorHandler"},
   "versionId": "22000000-0000-4000-8000-000000000099",
   "meta": {"templateCredsSetupCompleted": true},
   "tags": []

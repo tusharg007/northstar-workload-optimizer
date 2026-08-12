@@ -18,6 +18,8 @@ from app.db.repositories import (
     IdempotencyConflictError,
     ApprovalTaskNotFoundError,
     OrchestrationConflictError,
+    OutboxConflictError,
+    OutboxNotFoundError,
 )
 from app.db.session import DEFAULT_DATABASE_URL
 from app.runtime_store import RuntimeStore
@@ -54,6 +56,30 @@ class NotificationSentRequest(BaseModel):
 
 class SLAEvaluationRequest(BaseModel):
     as_of: datetime | None = None
+
+
+class OutboxClaimRequest(BaseModel):
+    worker_id: str = Field(min_length=1, max_length=128)
+    limit: int = Field(default=20, ge=1, le=100)
+    lease_seconds: int | None = Field(default=None, ge=1, le=3600)
+
+
+class OutboxAttemptRequest(BaseModel):
+    worker_id: str = Field(min_length=1, max_length=128)
+    status_code: int | None = Field(default=None, ge=100, le=599)
+    error_category: str | None = Field(default=None, max_length=64)
+    error_message: str | None = Field(default=None, max_length=4000)
+
+
+class WorkflowFailureRequest(BaseModel):
+    workflow_id: str = Field(min_length=1, max_length=128)
+    workflow_name: str = Field(min_length=1, max_length=255)
+    execution_id: str = Field(min_length=1, max_length=64)
+    failed_node: str | None = Field(default=None, max_length=255)
+    error_class: str | None = Field(default=None, max_length=128)
+    safe_message: str = Field(min_length=1, max_length=4000)
+    correlation_id: str | None = Field(default=None, max_length=128)
+    expense_id: str | None = Field(default=None, max_length=128)
 
 
 def _public_state(state: dict) -> dict:
@@ -276,6 +302,92 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
             )
         except ApprovalTaskNotFoundError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    @application.get("/api/internal/approval-notifications/{notification_id}")
+    def get_approval_notification(notification_id: str) -> dict:
+        try:
+            return store.orchestration.get_notification(notification_id)
+        except ApprovalTaskNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    @application.post("/api/internal/outbox/claim")
+    def claim_outbox(body: OutboxClaimRequest) -> dict:
+        return {"events": store.outbox.claim_due(body.worker_id, body.limit, body.lease_seconds)}
+
+    @application.get("/api/internal/outbox/dead-letter")
+    def list_dead_letters() -> list[dict]:
+        return store.outbox.dead_letters()
+
+    @application.post("/api/internal/outbox/{event_id}/claim")
+    def claim_one_outbox(event_id: str, body: OutboxClaimRequest) -> dict:
+        try:
+            return store.outbox.claim_one(event_id, body.worker_id, body.lease_seconds)
+        except OutboxNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except OutboxConflictError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @application.get("/api/internal/outbox/{event_id}/delivery-target")
+    def outbox_delivery_target(event_id: str) -> dict:
+        try:
+            return store.outbox.delivery_target(event_id)
+        except OutboxNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except OutboxConflictError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @application.get("/api/internal/outbox/{event_id}")
+    def get_outbox(event_id: str) -> dict:
+        try:
+            return store.outbox.get(event_id)
+        except OutboxNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    @application.get("/api/internal/outbox/by-delivery-key/{delivery_key:path}")
+    def get_outbox_by_delivery_key(delivery_key: str) -> dict:
+        try:
+            return store.outbox.get_by_delivery_key(delivery_key)
+        except OutboxNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    @application.post("/api/internal/outbox/{event_id}/success")
+    def outbox_success(event_id: str, body: OutboxAttemptRequest) -> dict:
+        try:
+            return store.outbox.success(event_id, body.worker_id, status_code=body.status_code)
+        except OutboxNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except OutboxConflictError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @application.post("/api/internal/outbox/{event_id}/failure")
+    def outbox_failure(event_id: str, body: OutboxAttemptRequest) -> dict:
+        try:
+            return store.outbox.failure(event_id, body.worker_id, status_code=body.status_code, error_category=body.error_category, error_message=body.error_message)
+        except OutboxNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except OutboxConflictError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @application.post("/api/internal/outbox/{event_id}/replay")
+    def replay_outbox(event_id: str) -> dict:
+        try:
+            return store.outbox.replay(event_id)
+        except OutboxNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except OutboxConflictError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @application.post("/api/internal/reliability/reconcile")
+    def reconcile_reliability() -> dict:
+        return store.outbox.reconcile()
+
+    @application.post("/api/internal/workflow-failures")
+    def record_workflow_failure(body: WorkflowFailureRequest) -> dict:
+        return store.outbox.record_workflow_failure(body.model_dump())
+
+    @application.get("/api/internal/workflow-failures")
+    def list_workflow_failures(status: str | None = Query(default=None)) -> list[dict]:
+        return store.outbox.workflow_failures(status)
 
     return application
 

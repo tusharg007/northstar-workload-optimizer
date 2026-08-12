@@ -31,14 +31,14 @@ def _serialized(filename: str) -> str:
 
 def test_all_workflow_exports_parse_and_pass_validator() -> None:
     workflows = _workflows()
-    assert len(workflows) == 7
+    assert len(workflows) == 10
     assert validate_workflows(workflows) == []
 
 
 def test_workflow_ids_and_names_are_unique() -> None:
     workflows = _workflows().values()
-    assert len({workflow["id"] for workflow in workflows}) == 7
-    assert len({workflow["name"] for workflow in workflows}) == 7
+    assert len({workflow["id"] for workflow in workflows}) == 10
+    assert len({workflow["name"] for workflow in workflows}) == 10
 
 
 def test_public_webhook_contracts_are_frozen() -> None:
@@ -68,6 +68,7 @@ def test_modular_workflow_references_resolve_to_stable_ids() -> None:
         "northstarRecordDecisionService",
         "northstarApprovalOrchestrator",
         "northstarApprovalNotificationService",
+        "northstarReliabilityDispatcher",
     }
     assert referenced <= ids
 
@@ -194,11 +195,29 @@ def test_gate3a_wait_schedule_and_resume_security_contracts() -> None:
             if node["type"] == "n8n-nodes-base.respondToWebhook"
         ]
         assert all("resume_url" not in node["parameters"]["responseBody"] for node in responses)
-    assert not any(
-        node["type"] == "n8n-nodes-base.errorTrigger"
+    error_handlers = [
+        workflow for workflow in workflows.values()
+        if any(node["type"] == "n8n-nodes-base.errorTrigger" for node in workflow["nodes"])
+    ]
+    assert [workflow["id"] for workflow in error_handlers] == ["northstarGlobalErrorHandler"]
+    assert all(
+        workflow.get("settings", {}).get("errorWorkflow") == "northstarGlobalErrorHandler"
         for workflow in workflows.values()
-        for node in workflow["nodes"]
+        if workflow["id"] != "northstarGlobalErrorHandler"
     )
+
+
+def test_gate3b_dispatcher_replay_and_notification_idempotency_contracts() -> None:
+    workflows = _workflows()
+    dispatcher = _serialized("23_reliability_dispatcher.json")
+    replay = workflows["24_dead_letter_replay.json"]
+    notification = _serialized("21_approval_notification_service.json")
+    assert "/api/internal/reliability/reconcile" in dispatcher
+    assert "/api/internal/outbox/claim" in dispatcher
+    assert "northstarApprovalNotificationService" in dispatcher
+    assert all(node["type"] != "n8n-nodes-base.webhook" for node in replay["nodes"])
+    assert "Idempotency-Key" in notification
+    assert "northstar:notification:" in notification
 
 
 @pytest.mark.skipif(

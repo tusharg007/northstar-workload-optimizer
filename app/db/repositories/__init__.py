@@ -10,6 +10,11 @@ from app.db.repositories.orchestration import (
     ApprovalTaskNotFoundError,
     OrchestrationConflictError,
 )
+from app.db.repositories.reliability import (
+    OutboxConflictError,
+    OutboxNotFoundError,
+    OutboxRepository,
+)
 
 __all__ = [
     "DecisionConflictError",
@@ -18,4 +23,7 @@ __all__ = [
     "WorkflowRepository",
     "ApprovalTaskNotFoundError",
     "OrchestrationConflictError",
+    "OutboxConflictError",
+    "OutboxNotFoundError",
+    "OutboxRepository",
 ]

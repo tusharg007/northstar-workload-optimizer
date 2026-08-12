@@ -201,7 +201,7 @@
     "Map API Result": {"main": [[{"node": "Respond to Webhook", "type": "main", "index": 0}]]}
   },
   "active": false,
-  "settings": {"executionOrder": "v1"},
+  "settings": {"executionOrder": "v1", "errorWorkflow": "northstarGlobalErrorHandler"},
   "versionId": "343ae4fc-5033-48e4-9235-5ec9dbb32945",
   "meta": {"templateCredsSetupCompleted": true},
   "tags": []

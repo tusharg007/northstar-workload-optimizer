@@ -2,100 +2,35 @@
   "id": "northstarApprovalNotificationService",
   "name": "North Star | 21 Approval Notification Service",
   "nodes": [
-    {
-      "parameters": {"inputSource": "passthrough"},
-      "id": "21000000-0000-4000-8000-000000000001",
-      "name": "Notification Input",
-      "type": "n8n-nodes-base.executeWorkflowTrigger",
-      "typeVersion": 1.1,
-      "position": [-600, 0]
-    },
-    {
-      "parameters": {
-        "assignments": {"assignments": [
-          {"id": "21-api", "name": "api_base_url", "value": "http://127.0.0.1:8000", "type": "string"},
-          {"id": "21-sink", "name": "notification_sink_url", "value": "http://127.0.0.1:9010/notifications", "type": "string"}
-        ]},
-        "includeOtherFields": true,
-        "options": {}
-      },
-      "id": "21000000-0000-4000-8000-000000000002",
-      "name": "Runtime Configuration",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [-360, 0]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2},
-          "conditions": [{"id": "21-pending", "leftValue": "={{ $json.status }}", "rightValue": "PENDING", "operator": {"type": "string", "operation": "equals"}}],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "21000000-0000-4000-8000-000000000003",
-      "name": "Notification Is Pending",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [-120, 0]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "={{ $('Runtime Configuration').item.json.notification_sink_url }}",
-        "sendHeaders": true,
-        "headerParameters": {"parameters": [{"name": "Content-Type", "value": "application/json"}]},
-        "sendBody": true,
-        "contentType": "json",
-        "specifyBody": "json",
-        "jsonBody": "={{ $('Notification Input').item.json }}",
-        "options": {"timeout": 5000, "response": {"response": {"fullResponse": true, "neverError": false, "responseFormat": "json"}}}
-      },
-      "id": "21000000-0000-4000-8000-000000000004",
-      "name": "Send to Notification Sink",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [120, -120]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "={{ $('Runtime Configuration').item.json.api_base_url + '/api/internal/approval-notifications/' + encodeURIComponent($('Notification Input').item.json.notification_id) + '/sent' }}",
-        "sendHeaders": true,
-        "headerParameters": {"parameters": [{"name": "Content-Type", "value": "application/json"}]},
-        "sendBody": true,
-        "contentType": "json",
-        "specifyBody": "json",
-        "jsonBody": "={{ ({ provider_message_id: $json.body.provider_message_id }) }}",
-        "options": {"timeout": 5000, "response": {"response": {"fullResponse": true, "neverError": false, "responseFormat": "json"}}}
-      },
-      "id": "21000000-0000-4000-8000-000000000005",
-      "name": "Persist Notification Sent",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [360, -120]
-    },
-    {
-      "parameters": {"assignments": {"assignments": [{"id": "21-result", "name": "notification_result", "value": "={{ $json.body || $('Notification Input').item.json }}", "type": "object"}]}, "options": {}},
-      "id": "21000000-0000-4000-8000-000000000006",
-      "name": "Return Notification Result",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [600, 0]
-    }
+    {"parameters":{"inputSource":"passthrough"},"id":"21000000-0000-4000-8000-000000000001","name":"Notification Input","type":"n8n-nodes-base.executeWorkflowTrigger","typeVersion":1.1,"position":[-960,0]},
+    {"parameters":{"assignments":{"assignments":[{"id":"21-api","name":"api_base_url","value":"http://127.0.0.1:8000","type":"string"},{"id":"21-sink","name":"notification_sink_url","value":"http://127.0.0.1:9010/notifications","type":"string"},{"id":"21-worker","name":"worker_id","value":"={{ $json.worker_id || ('n8n-notification-' + $execution.id) }}","type":"string"}]},"includeOtherFields":true,"options":{}},"id":"21000000-0000-4000-8000-000000000002","name":"Runtime Configuration","type":"n8n-nodes-base.set","typeVersion":3.4,"position":[-720,0]},
+    {"parameters":{"conditions":{"options":{"caseSensitive":true,"leftValue":"","typeValidation":"strict","version":2},"conditions":[{"id":"21-claimed","leftValue":"={{ String($json.already_claimed === true) }}","rightValue":"true","operator":{"type":"string","operation":"equals"}}],"combinator":"and"},"options":{}},"id":"21000000-0000-4000-8000-000000000003","name":"Event Already Claimed","type":"n8n-nodes-base.if","typeVersion":2.2,"position":[-480,0]},
+    {"parameters":{"method":"POST","url":"={{ $('Runtime Configuration').item.json.api_base_url + '/api/internal/outbox/' + encodeURIComponent($('Notification Input').item.json.outbox_event_id) + '/claim' }}","sendBody":true,"contentType":"json","specifyBody":"json","jsonBody":"={{ ({ worker_id: $('Runtime Configuration').item.json.worker_id }) }}","options":{"timeout":5000,"response":{"response":{"fullResponse":true,"neverError":true,"responseFormat":"json"}}}},"id":"21000000-0000-4000-8000-000000000004","name":"Claim Notification Delivery","type":"n8n-nodes-base.httpRequest","typeVersion":4.2,"position":[-240,120],"onError":"continueRegularOutput"},
+    {"parameters":{"conditions":{"options":{"caseSensitive":true,"leftValue":"","typeValidation":"strict","version":2},"conditions":[{"id":"21-claim-ok","leftValue":"={{ String(Number($json.statusCode) >= 200 && Number($json.statusCode) < 300) }}","rightValue":"true","operator":{"type":"string","operation":"equals"}}],"combinator":"and"},"options":{}},"id":"21000000-0000-4000-8000-000000000005","name":"Claim Acquired","type":"n8n-nodes-base.if","typeVersion":2.2,"position":[0,120]},
+    {"parameters":{"url":"={{ $('Runtime Configuration').item.json.api_base_url + '/api/internal/approval-notifications/' + encodeURIComponent($('Notification Input').item.json.notification_id) }}","options":{"timeout":5000,"response":{"response":{"fullResponse":true,"neverError":true,"responseFormat":"json"}}}},"id":"21000000-0000-4000-8000-000000000006","name":"Fetch Safe Notification","type":"n8n-nodes-base.httpRequest","typeVersion":4.2,"position":[240,-80],"onError":"continueRegularOutput"},
+    {"parameters":{"method":"POST","url":"={{ $('Runtime Configuration').item.json.notification_sink_url }}","sendHeaders":true,"headerParameters":{"parameters":[{"name":"Content-Type","value":"application/json"},{"name":"Idempotency-Key","value":"={{ 'northstar:notification:' + $('Notification Input').item.json.notification_id }}"}]},"sendBody":true,"contentType":"json","specifyBody":"json","jsonBody":"={{ $json.body }}","options":{"timeout":5000,"response":{"response":{"fullResponse":true,"neverError":true,"responseFormat":"json"}}}},"id":"21000000-0000-4000-8000-000000000007","name":"Send to Notification Sink","type":"n8n-nodes-base.httpRequest","typeVersion":4.2,"position":[480,-80],"onError":"continueRegularOutput"},
+    {"parameters":{"conditions":{"options":{"caseSensitive":true,"leftValue":"","typeValidation":"strict","version":2},"conditions":[{"id":"21-send-ok","leftValue":"={{ String(Number($json.statusCode) >= 200 && Number($json.statusCode) < 300) }}","rightValue":"true","operator":{"type":"string","operation":"equals"}}],"combinator":"and"},"options":{}},"id":"21000000-0000-4000-8000-000000000008","name":"Provider Accepted","type":"n8n-nodes-base.if","typeVersion":2.2,"position":[720,-80]},
+    {"parameters":{"method":"POST","url":"={{ $('Runtime Configuration').item.json.api_base_url + '/api/internal/approval-notifications/' + encodeURIComponent($('Notification Input').item.json.notification_id) + '/sent' }}","sendBody":true,"contentType":"json","specifyBody":"json","jsonBody":"={{ ({ provider_message_id: $json.body.provider_message_id }) }}","options":{"timeout":5000,"response":{"response":{"fullResponse":true,"neverError":false,"responseFormat":"json"}}}},"id":"21000000-0000-4000-8000-000000000009","name":"Persist Notification Sent","type":"n8n-nodes-base.httpRequest","typeVersion":4.2,"position":[960,-200]},
+    {"parameters":{"method":"POST","url":"={{ $('Runtime Configuration').item.json.api_base_url + '/api/internal/outbox/' + encodeURIComponent($('Notification Input').item.json.outbox_event_id) + '/success' }}","sendBody":true,"contentType":"json","specifyBody":"json","jsonBody":"={{ ({ worker_id: $('Runtime Configuration').item.json.worker_id, status_code: 200 }) }}","options":{"timeout":5000,"response":{"response":{"fullResponse":true,"neverError":false,"responseFormat":"json"}}}},"id":"21000000-0000-4000-8000-000000000010","name":"Report Notification Success","type":"n8n-nodes-base.httpRequest","typeVersion":4.2,"position":[1200,-200]},
+    {"parameters":{"method":"POST","url":"={{ $('Runtime Configuration').item.json.api_base_url + '/api/internal/outbox/' + encodeURIComponent($('Notification Input').item.json.outbox_event_id) + '/failure' }}","sendBody":true,"contentType":"json","specifyBody":"json","jsonBody":"={{ ({ worker_id: $('Runtime Configuration').item.json.worker_id, status_code: $json.statusCode || null, error_category: $json.error ? 'CONNECTION_ERROR' : null, error_message: $json.error?.message || $json.body?.message || 'Notification provider rejected delivery' }) }}","options":{"timeout":5000,"response":{"response":{"fullResponse":true,"neverError":false,"responseFormat":"json"}}}},"id":"21000000-0000-4000-8000-000000000011","name":"Report Notification Failure","type":"n8n-nodes-base.httpRequest","typeVersion":4.2,"position":[960,40]},
+    {"parameters":{"assignments":{"assignments":[{"id":"21-result","name":"delivery_result","value":"={{ $json.body || $json }}","type":"object"}]},"options":{}},"id":"21000000-0000-4000-8000-000000000012","name":"Return Delivery Result","type":"n8n-nodes-base.set","typeVersion":3.4,"position":[1440,0]},
+    {"parameters":{"assignments":{"assignments":[{"id":"21-skipped","name":"delivery_result","value":"={{ ({ status: 'NOT_CLAIMED' }) }}","type":"object"}]},"options":{}},"id":"21000000-0000-4000-8000-000000000013","name":"Return Claim Conflict","type":"n8n-nodes-base.set","typeVersion":3.4,"position":[240,200]}
   ],
-  "pinData": {},
-  "connections": {
-    "Notification Input": {"main": [[{"node": "Runtime Configuration", "type": "main", "index": 0}]]},
-    "Runtime Configuration": {"main": [[{"node": "Notification Is Pending", "type": "main", "index": 0}]]},
-    "Notification Is Pending": {"main": [[{"node": "Send to Notification Sink", "type": "main", "index": 0}], [{"node": "Return Notification Result", "type": "main", "index": 0}]]},
-    "Send to Notification Sink": {"main": [[{"node": "Persist Notification Sent", "type": "main", "index": 0}]]},
-    "Persist Notification Sent": {"main": [[{"node": "Return Notification Result", "type": "main", "index": 0}]]}
+  "pinData":{},
+  "connections":{
+    "Notification Input":{"main":[[{"node":"Runtime Configuration","type":"main","index":0}]]},
+    "Runtime Configuration":{"main":[[{"node":"Event Already Claimed","type":"main","index":0}]]},
+    "Event Already Claimed":{"main":[[{"node":"Fetch Safe Notification","type":"main","index":0}],[{"node":"Claim Notification Delivery","type":"main","index":0}]]},
+    "Claim Notification Delivery":{"main":[[{"node":"Claim Acquired","type":"main","index":0}]]},
+    "Claim Acquired":{"main":[[{"node":"Fetch Safe Notification","type":"main","index":0}],[{"node":"Return Claim Conflict","type":"main","index":0}]]},
+    "Fetch Safe Notification":{"main":[[{"node":"Send to Notification Sink","type":"main","index":0}]]},
+    "Send to Notification Sink":{"main":[[{"node":"Provider Accepted","type":"main","index":0}]]},
+    "Provider Accepted":{"main":[[{"node":"Persist Notification Sent","type":"main","index":0}],[{"node":"Report Notification Failure","type":"main","index":0}]]},
+    "Persist Notification Sent":{"main":[[{"node":"Report Notification Success","type":"main","index":0}]]},
+    "Report Notification Success":{"main":[[{"node":"Return Delivery Result","type":"main","index":0}]]},
+    "Report Notification Failure":{"main":[[{"node":"Return Delivery Result","type":"main","index":0}]]}
   },
-  "active": false,
-  "settings": {"executionOrder": "v1"},
-  "versionId": "21000000-0000-4000-8000-000000000099",
-  "meta": {"templateCredsSetupCompleted": true},
-  "tags": []
+  "active":false,
+  "settings":{"executionOrder":"v1","errorWorkflow":"northstarGlobalErrorHandler"},
+  "versionId":"21000000-0000-4000-8000-000000000099","meta":{"templateCredsSetupCompleted":true},"tags":[]
 }

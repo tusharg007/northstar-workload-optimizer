@@ -11,8 +11,9 @@ from sqlalchemy.exc import IntegrityError
 
 from app.approval_sla import ApprovalSLAService
 from app.db.base import ensure_utc, utc_now
-from app.db.models import ApprovalNotification, ApprovalTask, Expense
+from app.db.models import ApprovalNotification, ApprovalTask, Expense, OutboxEvent, WorkflowRun
 from app.db.session import Database
+from app.db.repositories.reliability import OutboxRepository
 
 
 class ApprovalTaskNotFoundError(Exception):
@@ -124,6 +125,11 @@ class ApprovalOrchestrationRepository:
             )
             if expense is None:
                 raise RuntimeError("Approval task has no expense")
+            return self._task_state(task, expense, reveal_resume=reveal_resume)
+
+    def get(self, task_id: str, *, reveal_resume: bool = True) -> dict:
+        with self.database.session() as session:
+            task, expense = self._task_and_expense(session, task_id)
             return self._task_state(task, expense, reveal_resume=reveal_resume)
 
     def claim_by_expense(self, expense_id: str) -> ClaimOutcome:
@@ -256,7 +262,8 @@ class ApprovalOrchestrationRepository:
                 )
             )
             if existing is not None:
-                return self._notification_state(existing)
+                outbox = session.scalar(select(OutboxEvent).where(OutboxEvent.delivery_key == f"notification:{existing.notification_id}"))
+                return {**self._notification_state(existing), "outbox_event_id": outbox.outbox_event_id if outbox else None}
             payload = {
                 "expense_id": expense.expense_id,
                 "approver_role": task.approver_role,
@@ -283,6 +290,24 @@ class ApprovalOrchestrationRepository:
                 session.flush()
             except IntegrityError:
                 raise
+            run = session.get(WorkflowRun, task.workflow_run_id)
+            outbox = OutboxRepository.ensure_event(
+                session,
+                event_type=OutboxRepository.EVENT_NOTIFICATION,
+                aggregate_type="approval_notification",
+                aggregate_id=notification.notification_id,
+                delivery_key=f"notification:{notification.notification_id}",
+                payload={"notification_id": notification.notification_id},
+                correlation_id=run.correlation_id if run else None,
+                now=now,
+            )
+            return {**self._notification_state(notification), "outbox_event_id": outbox.outbox_event_id}
+
+    def get_notification(self, notification_id: str) -> dict:
+        with self.database.session() as session:
+            notification = session.get(ApprovalNotification, notification_id)
+            if notification is None:
+                raise ApprovalTaskNotFoundError("Approval notification not found")
             return self._notification_state(notification)
 
     def reserve_sla_notifications(self, *, now: datetime | None = None) -> list[dict]:

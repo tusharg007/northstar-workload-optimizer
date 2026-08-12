@@ -69,6 +69,7 @@
           {"id": "decision-data", "name": "data", "value": "={{ [200, 409, 422].includes(Number($json.statusCode)) && $json.body ? $json.body : null }}", "type": "object"},
           {"id": "decision-error", "name": "error", "value": "={{ [200, 409, 422].includes(Number($json.statusCode)) ? null : ({ message: 'Upstream service unavailable' }) }}", "type": "object"},
           {"id": "decision-resume", "name": "resume_url", "value": "={{ Number($json.statusCode) === 200 ? ($('Resolve Approval Orchestration').item.json.body?.resume_url || '') : '' }}", "type": "string"},
+          {"id": "decision-task", "name": "task_id", "value": "={{ $('Resolve Approval Orchestration').item.json.body?.task_id || '' }}", "type": "string"},
           {"id": "decision-orchestration", "name": "orchestration_status", "value": "={{ $('Resolve Approval Orchestration').item.json.body?.orchestration_status || 'NOT_REGISTERED' }}", "type": "string"}
         ]},
         "options": {}
@@ -88,7 +89,7 @@
     "Call FastAPI Record Decision": {"main": [[{"node": "Return Service Envelope", "type": "main", "index": 0}]]}
   },
   "active": false,
-  "settings": {"executionOrder": "v1"},
+  "settings": {"executionOrder": "v1", "errorWorkflow": "northstarGlobalErrorHandler"},
   "versionId": "3e6f4706-0229-4f5a-a2cd-ea7da7838463",
   "meta": {"templateCredsSetupCompleted": true},
   "tags": []

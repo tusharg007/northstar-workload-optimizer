@@ -178,6 +178,9 @@ the existing analytics assets:
 - The existing **ETL and Power BI** assets remain the analytics layer.
 - A scheduled approval SLA monitor emits deduplicated reminder, overdue, and
   escalation notifications through a configurable local HTTP adapter.
+- A PostgreSQL transactional outbox provides leased at-least-once resume and
+  notification delivery, immutable attempt history, dead-letter replay,
+  reconciliation, and sanitized n8n Error Trigger incident capture.
 
 See [DEMO.md](DEMO.md) for the shortest Windows setup, import steps, commands,
 and five-minute interview sequence. Gate 3A design and runtime proof are in

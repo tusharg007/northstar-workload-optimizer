@@ -19,6 +19,9 @@ EXPECTED_FILES = {
     "20_approval_orchestrator.json",
     "21_approval_notification_service.json",
     "22_approval_sla_monitor.json",
+    "23_reliability_dispatcher.json",
+    "24_dead_letter_replay.json",
+    "99_global_error_handler.json",
 }
 PUBLIC_WEBHOOKS = {
     "northstar-expense": "POST",
@@ -26,6 +29,7 @@ PUBLIC_WEBHOOKS = {
 }
 SUPPORTED_NODE_TYPES = {
     "n8n-nodes-base.executeWorkflow",
+    "n8n-nodes-base.errorTrigger",
     "n8n-nodes-base.executeWorkflowTrigger",
     "n8n-nodes-base.httpRequest",
     "n8n-nodes-base.if",
@@ -41,6 +45,7 @@ TRIGGER_TYPES = {
     "n8n-nodes-base.executeWorkflowTrigger",
     "n8n-nodes-base.webhook",
     "n8n-nodes-base.scheduleTrigger",
+    "n8n-nodes-base.errorTrigger",
 }
 NON_EXECUTABLE_TYPES = {"n8n-nodes-base.stickyNote"}
 FORBIDDEN_DB_NODE_MARKERS = (
@@ -252,6 +257,24 @@ def validate_workflows(
             "Reserve Due SLA Notifications",
             "Send SLA Notification",
         },
+        "23_reliability_dispatcher.json": {
+            "Reliability Schedule",
+            "Run Reconciliation",
+            "Claim Due Outbox Events",
+            "For Each Claimed Event",
+            "Resolve Resume Capability Just In Time",
+            "Invoke Notification Service",
+        },
+        "24_dead_letter_replay.json": {
+            "Replay Input",
+            "Request Replay",
+            "Invoke Reliability Dispatcher",
+        },
+        "99_global_error_handler.json": {
+            "North Star Error Trigger",
+            "Normalize Safe Failure Metadata",
+            "Persist Workflow Failure Safely",
+        },
     }
     for filename, expected in required_nodes.items():
         actual = {
@@ -267,6 +290,38 @@ def validate_workflows(
         }
         if "n8n-nodes-base.respondToWebhook" not in node_types:
             errors.append(f"{filename}: Respond to Webhook node is required")
+
+    global_error_id = "northstarGlobalErrorHandler"
+    for filename, workflow in workflows.items():
+        if filename == "99_global_error_handler.json":
+            if workflow.get("settings", {}).get("errorWorkflow") == global_error_id:
+                errors.append(f"{filename}: global error handler must not reference itself")
+            continue
+        if workflow.get("settings", {}).get("errorWorkflow") != global_error_id:
+            errors.append(f"{filename}: Global Error Handler is not configured")
+
+    replay_types = {
+        node.get("type")
+        for node in workflows.get("24_dead_letter_replay.json", {}).get("nodes", [])
+    }
+    if "n8n-nodes-base.webhook" in replay_types:
+        errors.append("24_dead_letter_replay.json: replay must not expose a public webhook")
+
+    handler_types = {
+        node.get("type")
+        for node in workflows.get("99_global_error_handler.json", {}).get("nodes", [])
+    }
+    if "n8n-nodes-base.errorTrigger" not in handler_types:
+        errors.append("99_global_error_handler.json: Error Trigger is required")
+
+    serialized_all = json.dumps(workflows)
+    for path in (
+        "/api/internal/outbox/claim",
+        "/api/internal/reliability/reconcile",
+        "/api/internal/workflow-failures",
+    ):
+        if path not in serialized_all:
+            errors.append(f"Gate 3B internal path is missing: {path}")
 
     return errors
 

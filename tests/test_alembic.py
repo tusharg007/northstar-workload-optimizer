@@ -29,14 +29,19 @@ def test_alembic_upgrade_check_and_downgrade(
             "approval_tasks",
             "approval_decisions",
             "approval_notifications",
+            "outbox_events",
+            "outbox_delivery_attempts",
+            "workflow_failures",
         }.issubset(inspect(engine).get_table_names())
         command.check(config)
         command.downgrade(config, "-1")
-        tables_at_gate1 = set(inspect(engine).get_table_names())
-        assert "approval_notifications" not in tables_at_gate1
-        assert "approval_tasks" in tables_at_gate1
+        tables_at_gate3a = set(inspect(engine).get_table_names())
+        assert "approval_notifications" in tables_at_gate3a
+        assert "outbox_events" not in tables_at_gate3a
+        assert "approval_tasks" in tables_at_gate3a
         command.upgrade(config, "head")
         assert "approval_notifications" in inspect(engine).get_table_names()
+        assert "outbox_events" in inspect(engine).get_table_names()
         command.downgrade(config, "base")
         remaining = set(inspect(engine).get_table_names())
         assert "expenses" not in remaining

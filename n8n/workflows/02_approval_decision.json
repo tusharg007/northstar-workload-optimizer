@@ -1,194 +1,26 @@
 {
-  "id": "northstarApprovalDecision",
-  "name": "North Star | 02 Approval Decision",
-  "nodes": [
-    {
-      "parameters": {
-        "httpMethod": "POST",
-        "path": "northstar-approval",
-        "responseMode": "responseNode",
-        "options": {}
-      },
-      "id": "df05824f-ae92-446f-be43-56bdd41b0aa9",
-      "name": "Approval Decision Webhook",
-      "type": "n8n-nodes-base.webhook",
-      "typeVersion": 2,
-      "position": [-720, 0],
-      "webhookId": "northstar-approval"
-    },
-    {
-      "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "approval-expense-id",
-              "name": "expense_id",
-              "value": "={{ $json.body?.expense_id }}",
-              "type": "string"
-            },
-            {
-              "id": "approval-payload",
-              "name": "payload",
-              "value": "={{ ({ decision: $json.body?.decision, approver: $json.body?.approver, comment: $json.body?.comment || '' }) }}",
-              "type": "object"
-            },
-            {
-              "id": "approval-correlation",
-              "name": "incoming_correlation_id",
-              "value": "={{ $json.headers?.['x-correlation-id'] || '' }}",
-              "type": "string"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "ae13fed5-c6ae-4e9a-bf27-2563059a0afe",
-      "name": "Normalize Approval Request",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [-480, 0]
-    },
-    {
-      "parameters": {
-        "assignments": {
-          "assignments": [
-            {"id": "approval-context-id", "name": "expense_id", "value": "={{ $json.expense_id }}", "type": "string"},
-            {"id": "approval-context-payload", "name": "payload", "value": "={{ $json.payload }}", "type": "object"},
-            {"id": "approval-context-correlation", "name": "correlation_id", "value": "={{ $json.incoming_correlation_id || ('northstar-n8n-' + $execution.id) }}", "type": "string"}
-          ]
-        },
-        "options": {}
-      },
-      "id": "32f976d0-1b75-4ff1-b17c-c827eb8247af",
-      "name": "Build Orchestration Context",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [-240, 0]
-    },
-    {
-      "parameters": {
-        "source": "database",
-        "workflowId": {"__rl": true, "value": "northstarRecordDecisionService", "mode": "id"},
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {},
-          "matchingColumns": [],
-          "schema": [],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": true
-        },
-        "mode": "once",
-        "options": {"waitForSubWorkflow": true}
-      },
-      "id": "70ee372f-b2f7-4c1b-aa58-0586040f50fa",
-      "name": "Record Decision Service",
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.3,
-      "position": [0, 0],
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "assignments": {"assignments": [
-          {"id": "approval-preserve-status", "name": "status_code", "value": "={{ $json.status_code }}", "type": "number"},
-          {"id": "approval-preserve-data", "name": "data", "value": "={{ $json.data }}", "type": "object"},
-          {"id": "approval-preserve-error", "name": "error", "value": "={{ $json.error }}", "type": "object"},
-          {"id": "approval-preserve-resume", "name": "resume_url", "value": "={{ $json.resume_url || '' }}", "type": "string"}
-        ]},
-        "options": {}
-      },
-      "id": "02000000-0000-4000-8000-000000000001",
-      "name": "Preserve Persisted Decision Result",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [240, 0]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2},
-          "conditions": [{"id": "approval-resume", "leftValue": "={{ String(Number($json.status_code) === 200 && $json.resume_url.length > 0) }}", "rightValue": "true", "operator": {"type": "string", "operation": "equals"}}],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "02000000-0000-4000-8000-000000000002",
-      "name": "Active Wait Exists",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [480, 0]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "={{ $('Preserve Persisted Decision Result').item.json.resume_url }}",
-        "sendHeaders": true,
-        "headerParameters": {"parameters": [{"name": "Content-Type", "value": "application/json"}]},
-        "sendBody": true,
-        "contentType": "json",
-        "specifyBody": "json",
-        "jsonBody": "={{ ({ expense_id: $('Build Orchestration Context').item.json.expense_id, persisted_status: $('Preserve Persisted Decision Result').item.json.data.status }) }}",
-        "options": {"timeout": 5000, "response": {"response": {"fullResponse": true, "neverError": true, "responseFormat": "json"}}}
-      },
-      "id": "02000000-0000-4000-8000-000000000003",
-      "name": "Resume Waiting Approval Orchestrator",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [720, -120],
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "assignments": {
-          "assignments": [
-            {"id": "approval-response-body", "name": "response_body", "value": "={{ [200, 409, 422].includes(Number($('Preserve Persisted Decision Result').item.json.status_code)) && $('Preserve Persisted Decision Result').item.json.data ? $('Preserve Persisted Decision Result').item.json.data : ({ error: 'Upstream service unavailable', correlation_id: $('Build Orchestration Context').item.json.correlation_id }) }}", "type": "object"},
-            {"id": "approval-response-status", "name": "response_status", "value": "={{ [200, 409, 422].includes(Number($('Preserve Persisted Decision Result').item.json.status_code)) ? Number($('Preserve Persisted Decision Result').item.json.status_code) : 502 }}", "type": "number"},
-            {"id": "approval-response-correlation", "name": "correlation_id", "value": "={{ $('Build Orchestration Context').item.json.correlation_id }}", "type": "string"}
-          ]
-        },
-        "options": {}
-      },
-      "id": "8b9e517c-e82c-4675-a962-735b3ef1d43b",
-      "name": "Map API Result",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [960, 0]
-    },
-    {
-      "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ $json.response_body }}",
-        "options": {
-          "responseCode": "={{ $json.response_status }}",
-          "responseHeaders": {
-            "entries": [
-              {"name": "Content-Type", "value": "application/json"},
-              {"name": "X-Correlation-ID", "value": "={{ $json.correlation_id }}"}
-            ]
-          }
-        }
-      },
-      "id": "7e61b1f5-8bfe-458b-9e3c-66e4759ee47a",
-      "name": "Respond to Webhook",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.5,
-      "position": [1200, 0]
-    }
+  "id":"northstarApprovalDecision","name":"North Star | 02 Approval Decision",
+  "nodes":[
+    {"parameters":{"httpMethod":"POST","path":"northstar-approval","responseMode":"responseNode","options":{}},"id":"df05824f-ae92-446f-be43-56bdd41b0aa9","name":"Approval Decision Webhook","type":"n8n-nodes-base.webhook","typeVersion":2,"position":[-1080,0],"webhookId":"northstar-approval"},
+    {"parameters":{"assignments":{"assignments":[{"id":"approval-expense-id","name":"expense_id","value":"={{ $json.body?.expense_id }}","type":"string"},{"id":"approval-payload","name":"payload","value":"={{ ({ decision: $json.body?.decision, approver: $json.body?.approver, comment: $json.body?.comment || '' }) }}","type":"object"},{"id":"approval-correlation","name":"incoming_correlation_id","value":"={{ $json.headers?.['x-correlation-id'] || '' }}","type":"string"}]},"options":{}},"id":"ae13fed5-c6ae-4e9a-bf27-2563059a0afe","name":"Normalize Approval Request","type":"n8n-nodes-base.set","typeVersion":3.4,"position":[-840,0]},
+    {"parameters":{"assignments":{"assignments":[{"id":"approval-context-id","name":"expense_id","value":"={{ $json.expense_id }}","type":"string"},{"id":"approval-context-payload","name":"payload","value":"={{ $json.payload }}","type":"object"},{"id":"approval-context-correlation","name":"correlation_id","value":"={{ $json.incoming_correlation_id || ('northstar-n8n-' + $execution.id) }}","type":"string"},{"id":"approval-worker","name":"worker_id","value":"={{ 'n8n-immediate-resume-' + $execution.id }}","type":"string"},{"id":"approval-api","name":"api_base_url","value":"http://127.0.0.1:8000","type":"string"}]},"options":{}},"id":"32f976d0-1b75-4ff1-b17c-c827eb8247af","name":"Build Orchestration Context","type":"n8n-nodes-base.set","typeVersion":3.4,"position":[-600,0]},
+    {"parameters":{"source":"database","workflowId":{"__rl":true,"value":"northstarRecordDecisionService","mode":"id"},"workflowInputs":{"mappingMode":"defineBelow","value":{},"matchingColumns":[],"schema":[],"attemptToConvertTypes":false,"convertFieldsToString":true},"mode":"once","options":{"waitForSubWorkflow":true}},"id":"70ee372f-b2f7-4c1b-aa58-0586040f50fa","name":"Record Decision Service","type":"n8n-nodes-base.executeWorkflow","typeVersion":1.3,"position":[-360,0],"onError":"continueRegularOutput"},
+    {"parameters":{"assignments":{"assignments":[{"id":"approval-preserve-status","name":"status_code","value":"={{ $json.status_code }}","type":"number"},{"id":"approval-preserve-data","name":"data","value":"={{ $json.data }}","type":"object"},{"id":"approval-preserve-error","name":"error","value":"={{ $json.error }}","type":"object"},{"id":"approval-preserve-task","name":"task_id","value":"={{ $json.task_id || '' }}","type":"string"}]},"options":{}},"id":"02000000-0000-4000-8000-000000000001","name":"Preserve Persisted Decision Result","type":"n8n-nodes-base.set","typeVersion":3.4,"position":[-120,0]},
+    {"parameters":{"url":"={{ $('Build Orchestration Context').item.json.api_base_url + '/api/internal/outbox/by-delivery-key/approval-resume:' + encodeURIComponent($json.task_id) }}","options":{"timeout":5000,"response":{"response":{"fullResponse":true,"neverError":true,"responseFormat":"json"}}}},"id":"02000000-0000-4000-8000-000000000002","name":"Resolve Resume Outbox Event","type":"n8n-nodes-base.httpRequest","typeVersion":4.2,"position":[120,-120],"onError":"continueRegularOutput"},
+    {"parameters":{"method":"POST","url":"={{ $('Build Orchestration Context').item.json.api_base_url + '/api/internal/outbox/' + encodeURIComponent($json.body.outbox_event_id) + '/claim' }}","sendBody":true,"contentType":"json","specifyBody":"json","jsonBody":"={{ ({ worker_id: $('Build Orchestration Context').item.json.worker_id }) }}","options":{"timeout":5000,"response":{"response":{"fullResponse":true,"neverError":true,"responseFormat":"json"}}}},"id":"02000000-0000-4000-8000-000000000003","name":"Claim Resume Delivery","type":"n8n-nodes-base.httpRequest","typeVersion":4.2,"position":[360,-120],"onError":"continueRegularOutput"},
+    {"parameters":{"conditions":{"options":{"caseSensitive":true,"leftValue":"","typeValidation":"strict","version":2},"conditions":[{"id":"approval-claim","leftValue":"={{ String(Number($json.statusCode) >= 200 && Number($json.statusCode) < 300) }}","rightValue":"true","operator":{"type":"string","operation":"equals"}}],"combinator":"and"},"options":{}},"id":"02000000-0000-4000-8000-000000000004","name":"Resume Claim Acquired","type":"n8n-nodes-base.if","typeVersion":2.2,"position":[600,-120]},
+    {"parameters":{"url":"={{ $('Build Orchestration Context').item.json.api_base_url + '/api/internal/outbox/' + encodeURIComponent($('Claim Resume Delivery').item.json.body.outbox_event_id) + '/delivery-target' }}","options":{"timeout":5000,"response":{"response":{"fullResponse":true,"neverError":true,"responseFormat":"json"}}}},"id":"02000000-0000-4000-8000-000000000005","name":"Resolve Resume Capability Just In Time","type":"n8n-nodes-base.httpRequest","typeVersion":4.2,"position":[840,-240],"onError":"continueRegularOutput"},
+    {"parameters":{"conditions":{"options":{"caseSensitive":true,"leftValue":"","typeValidation":"strict","version":2},"conditions":[{"id":"approval-already","leftValue":"={{ String($json.body?.already_completed === true) }}","rightValue":"true","operator":{"type":"string","operation":"equals"}}],"combinator":"and"},"options":{}},"id":"02000000-0000-4000-8000-000000000006","name":"Workflow Already Completed","type":"n8n-nodes-base.if","typeVersion":2.2,"position":[1080,-240]},
+    {"parameters":{"method":"POST","url":"={{ $('Resolve Resume Capability Just In Time').item.json.body.resume_url }}","sendBody":true,"contentType":"json","specifyBody":"json","jsonBody":"={{ ({ expense_id: $('Build Orchestration Context').item.json.expense_id, persisted_status: $('Preserve Persisted Decision Result').item.json.data.status }) }}","options":{"timeout":5000,"response":{"response":{"fullResponse":true,"neverError":true,"responseFormat":"json"}}}},"id":"02000000-0000-4000-8000-000000000007","name":"Resume Waiting Approval Orchestrator","type":"n8n-nodes-base.httpRequest","typeVersion":4.2,"position":[1320,-120],"onError":"continueRegularOutput"},
+    {"parameters":{"conditions":{"options":{"caseSensitive":true,"leftValue":"","typeValidation":"strict","version":2},"conditions":[{"id":"approval-resumed","leftValue":"={{ String((Number($json.statusCode) >= 200 && Number($json.statusCode) < 300) || (Number($json.statusCode) === 400 && String($json.body?.message || '').includes('is running already'))) }}","rightValue":"true","operator":{"type":"string","operation":"equals"}}],"combinator":"and"},"options":{}},"id":"02000000-0000-4000-8000-000000000008","name":"Resume Accepted","type":"n8n-nodes-base.if","typeVersion":2.2,"position":[1560,-120]},
+    {"parameters":{"method":"POST","url":"={{ $('Build Orchestration Context').item.json.api_base_url + '/api/internal/outbox/' + encodeURIComponent($('Claim Resume Delivery').item.json.body.outbox_event_id) + '/success' }}","sendBody":true,"contentType":"json","specifyBody":"json","jsonBody":"={{ ({ worker_id: $('Build Orchestration Context').item.json.worker_id, status_code: 200 }) }}","options":{"timeout":5000,"response":{"response":{"fullResponse":true,"neverError":true,"responseFormat":"json"}}}},"id":"02000000-0000-4000-8000-000000000009","name":"Report Resume Success","type":"n8n-nodes-base.httpRequest","typeVersion":4.2,"position":[1800,-240],"onError":"continueRegularOutput"},
+    {"parameters":{"method":"POST","url":"={{ $('Build Orchestration Context').item.json.api_base_url + '/api/internal/outbox/' + encodeURIComponent($('Claim Resume Delivery').item.json.body.outbox_event_id) + '/failure' }}","sendBody":true,"contentType":"json","specifyBody":"json","jsonBody":"={{ ({ worker_id: $('Build Orchestration Context').item.json.worker_id, status_code: $json.statusCode || null, error_category: $json.error ? 'CONNECTION_ERROR' : null, error_message: $json.error?.message || $json.body?.message || 'Resume delivery failed' }) }}","options":{"timeout":5000,"response":{"response":{"fullResponse":true,"neverError":true,"responseFormat":"json"}}}},"id":"02000000-0000-4000-8000-000000000010","name":"Report Resume Failure","type":"n8n-nodes-base.httpRequest","typeVersion":4.2,"position":[1800,0],"onError":"continueRegularOutput"},
+    {"parameters":{"assignments":{"assignments":[{"id":"approval-response-body","name":"response_body","value":"={{ [200,409,422].includes(Number($('Preserve Persisted Decision Result').item.json.status_code)) && $('Preserve Persisted Decision Result').item.json.data ? $('Preserve Persisted Decision Result').item.json.data : ({ error: 'Upstream service unavailable', correlation_id: $('Build Orchestration Context').item.json.correlation_id }) }}","type":"object"},{"id":"approval-response-status","name":"response_status","value":"={{ [200,409,422].includes(Number($('Preserve Persisted Decision Result').item.json.status_code)) ? Number($('Preserve Persisted Decision Result').item.json.status_code) : 502 }}","type":"number"},{"id":"approval-response-correlation","name":"correlation_id","value":"={{ $('Build Orchestration Context').item.json.correlation_id }}","type":"string"}]},"options":{}},"id":"8b9e517c-e82c-4675-a962-735b3ef1d43b","name":"Map API Result","type":"n8n-nodes-base.set","typeVersion":3.4,"position":[2040,120]},
+    {"parameters":{"respondWith":"json","responseBody":"={{ $json.response_body }}","options":{"responseCode":"={{ $json.response_status }}","responseHeaders":{"entries":[{"name":"Content-Type","value":"application/json"},{"name":"X-Correlation-ID","value":"={{ $json.correlation_id }}"}]}}},"id":"7e61b1f5-8bfe-458b-9e3c-66e4759ee47a","name":"Respond to Webhook","type":"n8n-nodes-base.respondToWebhook","typeVersion":1.5,"position":[2280,120]}
   ],
-  "pinData": {},
-  "connections": {
-    "Approval Decision Webhook": {"main": [[{"node": "Normalize Approval Request", "type": "main", "index": 0}]]},
-    "Normalize Approval Request": {"main": [[{"node": "Build Orchestration Context", "type": "main", "index": 0}]]},
-    "Build Orchestration Context": {"main": [[{"node": "Record Decision Service", "type": "main", "index": 0}]]},
-    "Record Decision Service": {"main": [[{"node": "Preserve Persisted Decision Result", "type": "main", "index": 0}]]},
-    "Preserve Persisted Decision Result": {"main": [[{"node": "Active Wait Exists", "type": "main", "index": 0}]]},
-    "Active Wait Exists": {"main": [[{"node": "Resume Waiting Approval Orchestrator", "type": "main", "index": 0}], [{"node": "Map API Result", "type": "main", "index": 0}]]},
-    "Resume Waiting Approval Orchestrator": {"main": [[{"node": "Map API Result", "type": "main", "index": 0}]]},
-    "Map API Result": {"main": [[{"node": "Respond to Webhook", "type": "main", "index": 0}]]}
+  "pinData":{},
+  "connections":{
+    "Approval Decision Webhook":{"main":[[{"node":"Normalize Approval Request","type":"main","index":0}]]},"Normalize Approval Request":{"main":[[{"node":"Build Orchestration Context","type":"main","index":0}]]},"Build Orchestration Context":{"main":[[{"node":"Record Decision Service","type":"main","index":0}]]},"Record Decision Service":{"main":[[{"node":"Preserve Persisted Decision Result","type":"main","index":0}]]},"Preserve Persisted Decision Result":{"main":[[{"node":"Resolve Resume Outbox Event","type":"main","index":0}]]},"Resolve Resume Outbox Event":{"main":[[{"node":"Claim Resume Delivery","type":"main","index":0}]]},"Claim Resume Delivery":{"main":[[{"node":"Resume Claim Acquired","type":"main","index":0}]]},"Resume Claim Acquired":{"main":[[{"node":"Resolve Resume Capability Just In Time","type":"main","index":0}],[{"node":"Map API Result","type":"main","index":0}]]},"Resolve Resume Capability Just In Time":{"main":[[{"node":"Workflow Already Completed","type":"main","index":0}]]},"Workflow Already Completed":{"main":[[{"node":"Report Resume Success","type":"main","index":0}],[{"node":"Resume Waiting Approval Orchestrator","type":"main","index":0}]]},"Resume Waiting Approval Orchestrator":{"main":[[{"node":"Resume Accepted","type":"main","index":0}]]},"Resume Accepted":{"main":[[{"node":"Report Resume Success","type":"main","index":0}],[{"node":"Report Resume Failure","type":"main","index":0}]]},"Report Resume Success":{"main":[[{"node":"Map API Result","type":"main","index":0}]]},"Report Resume Failure":{"main":[[{"node":"Map API Result","type":"main","index":0}]]},"Map API Result":{"main":[[{"node":"Respond to Webhook","type":"main","index":0}]]}
   },
-  "active": false,
-  "settings": {"executionOrder": "v1"},
-  "versionId": "7d972ae2-f483-4f68-b817-9fe842d6fbb1",
-  "meta": {"templateCredsSetupCompleted": true},
-  "tags": []
+  "active":false,"settings":{"executionOrder":"v1","errorWorkflow":"northstarGlobalErrorHandler"},"versionId":"7d972ae2-f483-4f68-b817-9fe842d6fbb1","meta":{"templateCredsSetupCompleted":true},"tags":[]
 }
