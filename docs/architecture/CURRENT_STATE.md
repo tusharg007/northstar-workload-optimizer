@@ -1,6 +1,6 @@
 # North Star Current Architecture Baseline
 
-Status: **CURRENT IMPLEMENTED** after Gate 3B verification on 2026-08-13.
+Status: **CURRENT IMPLEMENTED** after Gate 4A verification on 2026-08-13.
 
 This document records the system that exists today. It is not the target v2
 architecture. Items under **PLANNED FOR V2** are boundaries only; the detailed
@@ -17,6 +17,7 @@ flowchart LR
     API["FastAPI on :8000\nHTTP boundary"]
     Domain["AutomationPipeline\ndeterministic validation, anomaly scoring, routing"]
     Repository["SQLAlchemy repositories\ntransaction + idempotency boundary"]
+    Context["Governed Context Registry\nversioned policy, terms, trust, as-of resolution"]
     Runtime[("PostgreSQL target / SQLite fallback\noperational state")]
     ETL["ETL / analytics pipeline"]
     Analytics[("northstar.db\nanalytical data")]
@@ -30,6 +31,8 @@ flowchart LR
     N8N --> Notify
     API --> Domain
     API --> Repository
+    API --> Context
+    Context --> Runtime
     Repository --> Runtime
     ETL --> Analytics
     Assets --> ETL
@@ -84,6 +87,10 @@ Application factory: `app.main:create_app`. Uvicorn entry point:
 | `GET /api/expenses/{expense_id}` | Path ID | Public expense state, or 404 |
 | `GET /api/expenses/{expense_id}/explanation` | Path ID | Deterministic risk/routing explanation, or 404 |
 | `POST /api/expenses/{expense_id}/decision` | `DecisionRequest` | Updated public expense state, or 404 |
+| `GET /api/context/policies...` | Optional UTC `as_of` | Policy identities, versions, effective resolution, rules, owner, and trust |
+| `GET /api/context/terms...` | Optional UTC `as_of` | Term identities, versioned definitions, owner, and trust |
+| `GET /api/context/owners/{owner_key}` | Path key | Accountable owner, or 404 |
+| `GET /api/context/expenses/{expense_id}` | Optional UTC `as_of` | Read-only policy/term context separated from risk-signal definitions |
 
 `ExpenseSubmission` requires `expense_id`, `employee_id`, `employee_name`,
 `department`, `transaction_date`, `merchant`, `category`, and a positive
@@ -125,6 +132,14 @@ Revision `20260812_0002` adds orchestration metadata to `approval_tasks` and the
 `workflow_failures`. JSON uses JSONB on PostgreSQL and JSON on
 SQLite. Money is `Numeric(18,2)`. Application timestamps are normalized to
 aware UTC values.
+
+Revision `20260813_0004` adds the North Star Governed Context Registry:
+`governance_owners`, `business_terms`, `business_term_versions`,
+`policy_definitions`, `policy_versions`, `policy_rules`, and `trust_signals`.
+Governed versions carry deterministic SHA-256 hashes, effective intervals,
+certification and review metadata, provenance, ownership, and deterministic
+trust aggregation. Gate 4A reads this context but does not alter or annotate
+expense decisions.
 
 Processing atomically persists the materialized expense, one workflow run,
 ordered audit events, and a pending approval task. Approval atomically persists
@@ -271,15 +286,19 @@ state, and exits nonzero with a clear service/HTTP/timeout error on failure.
   CI workflow or containerized reproducibility definition.
 - The checkout remains nested one directory below the provided workspace root;
   it is now a local Git repository with a Gate 0 baseline commit and no remote.
+- Context changes currently use a trusted source-controlled seed; there is no
+  authoring UI, RBAC, certification workflow, or decision provenance yet.
 - Business-step ownership is obscured by the legacy `AutomationPipeline` name;
   the intended boundary is n8n orchestration versus Python deterministic domain
   logic.
 
 ## PLANNED FOR V2 (not implemented)
 
-Governed context and provenance, policy/glossary governance, evaluations,
+Decision provenance, evaluations,
 Metabase, optional governed MCP and voice interfaces, Docker Compose, and CI
 remain later work. PostgreSQL persistence, durable HITL, transactional outbox,
 leases, DLQ/replay, reconciliation, and global n8n error handling are
-runtime-verified. Production authentication, backups, monitoring, and release
-packaging remain later-gate concerns.
+runtime-verified. The governed context registry, certified version history,
+as-of resolution, trust/freshness, and read-only context API are also verified.
+Production authentication, backups, monitoring, and release packaging remain
+later-gate concerns.

@@ -181,7 +181,13 @@ the existing analytics assets:
 - A PostgreSQL transactional outbox provides leased at-least-once resume and
   notification delivery, immutable attempt history, dead-letter replay,
   reconciliation, and sanitized n8n Error Trigger incident capture.
+- The **North Star Governed Context Registry** provides versioned business
+  terms, certified policy/rule metadata, ownership, provenance, deterministic
+  content hashes, effective-time resolution, and trust/freshness without yet
+  changing expense decisions.
 
 See [DEMO.md](DEMO.md) for the shortest Windows setup, import steps, commands,
 and five-minute interview sequence. Gate 3A design and runtime proof are in
 [docs/architecture/G3A_DURABLE_HITL_SLA.md](docs/architecture/G3A_DURABLE_HITL_SLA.md).
+Gate 4A design and verification are in
+[docs/architecture/G4A_GOVERNED_CONTEXT_REGISTRY.md](docs/architecture/G4A_GOVERNED_CONTEXT_REGISTRY.md).

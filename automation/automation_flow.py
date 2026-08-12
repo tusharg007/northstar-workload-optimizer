@@ -25,7 +25,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 # ── Logging Setup ────────────────────────────────────────────────
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s │ %(levelname)-8s │ %(message)s",
+    format="%(asctime)s | %(levelname)-8s | %(message)s",
     datefmt="%H:%M:%S",
     handlers=[logging.StreamHandler(sys.stdout)]
 )

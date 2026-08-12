@@ -1,0 +1,66 @@
+{
+  "catalog": "North Star deterministic expense risk signals",
+  "source_reference": "automation/automation_flow.py:241-305",
+  "signals": [
+    {
+      "signal_key": "STATISTICAL_OUTLIER",
+      "canonical_name": "Category Statistical Outlier",
+      "description": "Flags an amount whose absolute category z-score exceeds 2.5.",
+      "engine_component": "AnomalyDetector",
+      "deterministic": true,
+      "category": "ALGORITHMIC_RISK_SIGNAL",
+      "parameters": {"absolute_z_score_greater_than": 2.5, "risk_score_increment": 0.3},
+      "observed_flag_prefix": "STATISTICAL_OUTLIER"
+    },
+    {
+      "signal_key": "WEEKEND_TRANSACTION",
+      "canonical_name": "Weekend Transaction",
+      "description": "Flags transactions dated Saturday or Sunday.",
+      "engine_component": "AnomalyDetector",
+      "deterministic": true,
+      "category": "ALGORITHMIC_RISK_SIGNAL",
+      "parameters": {"weekday_index_at_least": 5, "risk_score_increment": 0.15},
+      "observed_flag_prefix": "WEEKEND_TRANSACTION"
+    },
+    {
+      "signal_key": "SUSPICIOUS_ROUND_AMOUNT",
+      "canonical_name": "High Round Amount",
+      "description": "Flags amounts above 500 that are exact multiples of 100.",
+      "engine_component": "AnomalyDetector",
+      "deterministic": true,
+      "category": "ALGORITHMIC_RISK_SIGNAL",
+      "parameters": {"amount_greater_than": 500, "multiple_of": 100, "risk_score_increment": 0.2},
+      "observed_flag_prefix": "SUSPICIOUS_ROUND_AMOUNT"
+    },
+    {
+      "signal_key": "MISSING_RECEIPT_HIGH_VALUE",
+      "canonical_name": "High-Value Missing Receipt Signal",
+      "description": "Adds risk when an amount above 200 has no receipt. This risk heuristic is distinct from the business receipt requirement above 75.",
+      "engine_component": "AnomalyDetector",
+      "deterministic": true,
+      "category": "ALGORITHMIC_RISK_SIGNAL",
+      "parameters": {"amount_greater_than": 200, "receipt_attached": false, "risk_score_increment": 0.25},
+      "observed_flag_prefix": "MISSING_RECEIPT_HIGH_VALUE"
+    },
+    {
+      "signal_key": "POTENTIAL_DUPLICATE",
+      "canonical_name": "Duplicate Description Pattern",
+      "description": "Flags descriptions containing the case-insensitive marker DUPLICATE.",
+      "engine_component": "AnomalyDetector",
+      "deterministic": true,
+      "category": "ALGORITHMIC_RISK_SIGNAL",
+      "parameters": {"description_contains": "DUPLICATE", "risk_score_increment": 0.35},
+      "observed_flag_prefix": "POTENTIAL_DUPLICATE"
+    },
+    {
+      "signal_key": "RISK_SCORE_CLASSIFICATION",
+      "canonical_name": "Risk Score Classification",
+      "description": "Maps the accumulated deterministic score to LOW, MEDIUM, HIGH, or CRITICAL.",
+      "engine_component": "AnomalyDetector",
+      "deterministic": true,
+      "category": "ALGORITHMIC_RISK_SIGNAL",
+      "parameters": {"medium_at": 0.2, "high_at": 0.4, "critical_at": 0.6},
+      "observed_flag_prefix": "__RISK_LEVEL_ONLY__"
+    }
+  ]
+}

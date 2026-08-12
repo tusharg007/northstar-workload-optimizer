@@ -12,6 +12,7 @@ from sqlalchemy.engine import make_url
 from app.db.repositories.workflows import ProcessOutcome, WorkflowRepository
 from app.db.repositories.orchestration import ApprovalOrchestrationRepository
 from app.db.repositories.reliability import OutboxRepository
+from app.context.service import ContextService
 from app.db.session import Database, normalize_database_url
 
 
@@ -25,6 +26,7 @@ class RuntimeStore:
         self.repository = WorkflowRepository(self.database)
         self.orchestration = ApprovalOrchestrationRepository(self.database)
         self.outbox = OutboxRepository(self.database)
+        self.context = ContextService(self.database)
         self.db_path = Path(make_url(resolved).database) if is_sqlite else None
         if is_sqlite:
             self._bootstrap_legacy_rows()

@@ -23,6 +23,17 @@ from app.db.repositories import (
 )
 from app.db.session import DEFAULT_DATABASE_URL
 from app.runtime_store import RuntimeStore
+from app.context.exceptions import ContextConflictError, ContextNotFoundError
+from app.context.models import (
+    ExpenseContextView,
+    OwnerView,
+    PolicySummary,
+    PolicyVersionView,
+    ResolvedPolicy,
+    ResolvedTerm,
+    TermSummary,
+    TermVersionView,
+)
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
 DEFAULT_RUNTIME_DB = PROJECT_DIR / "data" / "northstar_runtime.db"
@@ -117,6 +128,54 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
     @application.get("/health")
     def health() -> dict[str, str]:
         return {"status": "ok", "service": "northstar"}
+
+    def context_call(operation):
+        try:
+            return operation()
+        except ContextNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except ContextConflictError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @application.get("/api/context/policies", response_model=list[PolicySummary])
+    def list_context_policies() -> list[dict]:
+        return store.context.list_policies()
+
+    @application.get("/api/context/policies/{policy_key}", response_model=PolicySummary)
+    def get_context_policy(policy_key: str) -> dict:
+        return context_call(lambda: store.context.get_policy(policy_key))
+
+    @application.get("/api/context/policies/{policy_key}/versions", response_model=list[PolicyVersionView])
+    def list_context_policy_versions(policy_key: str) -> list[dict]:
+        return context_call(lambda: store.context.policy_versions(policy_key))
+
+    @application.get("/api/context/policies/{policy_key}/resolve", response_model=ResolvedPolicy)
+    def resolve_context_policy(policy_key: str, as_of: datetime | None = Query(default=None)) -> dict:
+        return context_call(lambda: store.context.resolve_policy(policy_key, as_of))
+
+    @application.get("/api/context/terms", response_model=list[TermSummary])
+    def list_context_terms() -> list[dict]:
+        return store.context.list_terms()
+
+    @application.get("/api/context/terms/{term_key}", response_model=TermSummary)
+    def get_context_term(term_key: str) -> dict:
+        return context_call(lambda: store.context.get_term(term_key))
+
+    @application.get("/api/context/terms/{term_key}/versions", response_model=list[TermVersionView])
+    def list_context_term_versions(term_key: str) -> list[dict]:
+        return context_call(lambda: store.context.term_versions(term_key))
+
+    @application.get("/api/context/terms/{term_key}/resolve", response_model=ResolvedTerm)
+    def resolve_context_term(term_key: str, as_of: datetime | None = Query(default=None)) -> dict:
+        return context_call(lambda: store.context.resolve_business_term(term_key, as_of))
+
+    @application.get("/api/context/owners/{owner_key}", response_model=OwnerView)
+    def get_context_owner(owner_key: str) -> dict:
+        return context_call(lambda: store.context.get_owner(owner_key))
+
+    @application.get("/api/context/expenses/{expense_id}", response_model=ExpenseContextView)
+    def get_expense_context(expense_id: str, as_of: datetime | None = Query(default=None)) -> dict:
+        return context_call(lambda: store.context.resolve_expense_context(expense_id, as_of))
 
     @application.post("/api/expenses/process")
     def process_expense(

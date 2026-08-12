@@ -15,6 +15,7 @@ from app.db.repositories.reliability import (
     OutboxNotFoundError,
     OutboxRepository,
 )
+from app.db.repositories.context import ContextRepository
 
 __all__ = [
     "DecisionConflictError",
@@ -26,4 +27,5 @@ __all__ = [
     "OutboxConflictError",
     "OutboxNotFoundError",
     "OutboxRepository",
+    "ContextRepository",
 ]

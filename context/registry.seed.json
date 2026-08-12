@@ -1,0 +1,207 @@
+{
+  "registry": "North Star Governed Context Registry",
+  "owners": [
+    {
+      "owner_key": "FINANCE_COMPLIANCE",
+      "display_name": "Finance Compliance",
+      "owner_type": "TEAM",
+      "domain": "Expense Management",
+      "contact_reference": null,
+      "active": true
+    }
+  ],
+  "business_terms": [
+    {
+      "term_key": "EXPENSE_CATEGORY_LIMIT",
+      "canonical_name": "Expense Category Limit",
+      "domain": "Expense Management",
+      "owner_key": "FINANCE_COMPLIANCE",
+      "versions": [
+        {
+          "version_number": 1,
+          "definition": "The maximum expected expense amount for a configured expense category; exceeding it produces a business-policy warning.",
+          "status": "CERTIFIED",
+          "effective_from": "2025-01-01T00:00:00Z",
+          "effective_to": null,
+          "review_due_at": "2030-01-01T00:00:00Z",
+          "certified_at": "2025-01-01T00:00:00Z",
+          "source_reference": "automation/automation_flow.py:178-204"
+        }
+      ]
+    },
+    {
+      "term_key": "SUPPORTING_RECEIPT",
+      "canonical_name": "Supporting Receipt",
+      "domain": "Expense Management",
+      "owner_key": "FINANCE_COMPLIANCE",
+      "versions": [
+        {
+          "version_number": 1,
+          "definition": "Evidence attached to an expense submission that supports the claimed transaction.",
+          "status": "CERTIFIED",
+          "effective_from": "2025-01-01T00:00:00Z",
+          "effective_to": null,
+          "review_due_at": "2030-01-01T00:00:00Z",
+          "certified_at": "2025-01-01T00:00:00Z",
+          "source_reference": "automation/automation_flow.py:206-210"
+        }
+      ]
+    },
+    {
+      "term_key": "APPROVAL_REQUIRED",
+      "canonical_name": "Approval Required",
+      "domain": "Expense Management",
+      "owner_key": "FINANCE_COMPLIANCE",
+      "versions": [
+        {
+          "version_number": 1,
+          "definition": "A routing outcome requiring a human approver rather than deterministic auto-approval.",
+          "status": "CERTIFIED",
+          "effective_from": "2025-01-01T00:00:00Z",
+          "effective_to": null,
+          "review_due_at": "2030-01-01T00:00:00Z",
+          "certified_at": "2025-01-01T00:00:00Z",
+          "source_reference": "automation/automation_flow.py:330-375"
+        }
+      ]
+    }
+  ],
+  "policies": [
+    {
+      "policy_key": "EXPENSE_SUBMISSION_REQUIREMENTS",
+      "policy_name": "Expense Submission Requirements",
+      "domain": "Expense Management",
+      "description": "Deterministic business requirements applied during expense validation.",
+      "owner_key": "FINANCE_COMPLIANCE",
+      "versions": [
+        {
+          "version_number": 1,
+          "status": "CERTIFIED",
+          "effective_from": "2025-01-01T00:00:00Z",
+          "effective_to": null,
+          "review_due_at": "2030-01-01T00:00:00Z",
+          "certified_at": "2025-01-01T00:00:00Z",
+          "source_reference": "automation/automation_flow.py:178-227",
+          "metadata": {"currency": "USD", "behavior_in_gate_4a": "read_only"},
+          "rules": [
+            {
+              "rule_key": "CATEGORY_SPENDING_LIMITS",
+              "rule_name": "Category Spending Limits",
+              "rule_type": "CATEGORY_THRESHOLD",
+              "description": "Warn when the expense amount exceeds its configured category limit.",
+              "parameters": {"limits": {"Travel": 5000, "Meals & Entertainment": 500, "Office Supplies": 300, "Software & Subscriptions": 2000, "Training & Development": 3000, "Client Entertainment": 2000, "Transportation": 800, "Telecommunications": 500, "Equipment": 5000, "Miscellaneous": 1000}, "operator": "greater_than", "effect": "WARNING"},
+              "severity": "WARN",
+              "business_term_key": "EXPENSE_CATEGORY_LIMIT",
+              "source_reference": "automation/automation_flow.py:178-204"
+            },
+            {
+              "rule_key": "RECEIPT_REQUIRED_THRESHOLD",
+              "rule_name": "Receipt Required Threshold",
+              "rule_type": "AMOUNT_THRESHOLD",
+              "description": "Warn when an expense above 75 has no receipt.",
+              "parameters": {"amount_greater_than": 75, "receipt_attached": false, "effect": "WARNING"},
+              "severity": "WARN",
+              "business_term_key": "SUPPORTING_RECEIPT",
+              "source_reference": "automation/automation_flow.py:206-210"
+            },
+            {
+              "rule_key": "DESCRIPTION_REQUIRED_THRESHOLD",
+              "rule_name": "Detailed Description Requirement",
+              "rule_type": "AMOUNT_THRESHOLD",
+              "description": "Warn when an expense above 500 has a trimmed description shorter than five characters.",
+              "parameters": {"amount_greater_than": 500, "minimum_trimmed_characters": 5, "effect": "WARNING"},
+              "severity": "WARN",
+              "business_term_key": null,
+              "source_reference": "automation/automation_flow.py:220-222"
+            },
+            {
+              "rule_key": "FUTURE_TRANSACTION_DATE_REJECTED",
+              "rule_name": "Future Transaction Date Rejection",
+              "rule_type": "DATE_VALIDATION",
+              "description": "Reject a transaction date later than the processing date.",
+              "parameters": {"transaction_date": "not_after_processing_date", "effect": "ERROR"},
+              "severity": "ERROR",
+              "business_term_key": null,
+              "source_reference": "automation/automation_flow.py:212-218"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "policy_key": "EXPENSE_APPROVAL_ROUTING",
+      "policy_name": "Expense Approval Routing",
+      "domain": "Expense Management",
+      "description": "Amount tiers and risk-response rules that select the approval route.",
+      "owner_key": "FINANCE_COMPLIANCE",
+      "versions": [
+        {
+          "version_number": 1,
+          "status": "CERTIFIED",
+          "effective_from": "2025-01-01T00:00:00Z",
+          "effective_to": null,
+          "review_due_at": "2030-01-01T00:00:00Z",
+          "certified_at": "2025-01-01T00:00:00Z",
+          "source_reference": "automation/automation_flow.py:330-375",
+          "metadata": {"currency": "USD", "behavior_in_gate_4a": "read_only"},
+          "rules": [
+            {
+              "rule_key": "AMOUNT_APPROVAL_TIERS",
+              "rule_name": "Amount Approval Tiers",
+              "rule_type": "ROUTING_TABLE",
+              "description": "Select the base approver and auto-approval setting from the expense amount.",
+              "parameters": {"tiers": [{"maximum_amount": 500, "role": "Direct Manager", "level": 1, "auto_approve": true}, {"maximum_amount": 2000, "role": "Department Head", "level": 2, "auto_approve": false}, {"maximum_amount": 5000, "role": "Finance Director", "level": 3, "auto_approve": false}, {"maximum_amount": null, "role": "VP / C-Suite", "level": 4, "auto_approve": false}]},
+              "severity": "INFO",
+              "business_term_key": "APPROVAL_REQUIRED",
+              "source_reference": "automation/automation_flow.py:332-348"
+            },
+            {
+              "rule_key": "HIGH_RISK_ESCALATION_ROUTE",
+              "rule_name": "High-Risk Escalation Route",
+              "rule_type": "RISK_RESPONSE",
+              "description": "Route HIGH or CRITICAL algorithmic risk outcomes to Finance Director + Compliance and disable auto-approval.",
+              "parameters": {"risk_levels": ["HIGH", "CRITICAL"], "role": "Finance Director + Compliance", "minimum_level": 3, "auto_approve": false},
+              "severity": "REVIEW",
+              "business_term_key": "APPROVAL_REQUIRED",
+              "source_reference": "automation/automation_flow.py:350-356"
+            },
+            {
+              "rule_key": "MEDIUM_RISK_REQUIRES_HUMAN",
+              "rule_name": "Medium-Risk Human Review",
+              "rule_type": "RISK_RESPONSE",
+              "description": "Disable auto-approval for a MEDIUM algorithmic risk outcome.",
+              "parameters": {"risk_levels": ["MEDIUM"], "auto_approve": false},
+              "severity": "REVIEW",
+              "business_term_key": "APPROVAL_REQUIRED",
+              "source_reference": "automation/automation_flow.py:356-358"
+            },
+            {
+              "rule_key": "REVIEW_REQUIRED_THRESHOLD",
+              "rule_name": "Review Required Threshold",
+              "rule_type": "AMOUNT_OR_RISK",
+              "description": "Mark review required when the expense is anomalous or the amount exceeds 2000.",
+              "parameters": {"any": [{"algorithmic_anomaly": true}, {"amount_greater_than": 2000}]},
+              "severity": "REVIEW",
+              "business_term_key": "APPROVAL_REQUIRED",
+              "source_reference": "automation/automation_flow.py:359"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "trust_signals": [
+    {"target_kind": "policy", "target_key": "EXPENSE_SUBMISSION_REQUIREMENTS", "version_number": 1},
+    {"target_kind": "policy", "target_key": "EXPENSE_APPROVAL_ROUTING", "version_number": 1},
+    {"target_kind": "term", "target_key": "EXPENSE_CATEGORY_LIMIT", "version_number": 1},
+    {"target_kind": "term", "target_key": "SUPPORTING_RECEIPT", "version_number": 1},
+    {"target_kind": "term", "target_key": "APPROVAL_REQUIRED", "version_number": 1}
+  ],
+  "trust_signal_defaults": {
+    "observed_at": "2025-01-01T00:00:00Z",
+    "expires_at": "2030-01-01T00:00:00Z",
+    "source": "context/registry.seed.json",
+    "details": {"basis": "Source-controlled review of current deterministic implementation"},
+    "signals": ["CERTIFICATION", "FRESHNESS", "OWNERSHIP", "SOURCE_VERIFICATION"]
+  }
+}
