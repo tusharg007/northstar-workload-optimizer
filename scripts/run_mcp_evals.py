@@ -246,7 +246,7 @@ async def run_fast() -> int:
 
 async def run_stdio() -> int:
     parameters = StdioServerParameters(
-        command=str(ROOT / ".venv" / "Scripts" / "python.exe"),
+        command=sys.executable,
         args=["-m", "mcp_server.server"], cwd=ROOT,
         env={key: value for key, value in os.environ.items() if key.startswith(("NORTHSTAR_", "N8N_"))},
     )
