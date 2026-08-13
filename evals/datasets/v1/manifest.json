@@ -1,0 +1,31 @@
+{
+  "dataset_name": "northstar-safety-reliability-golden",
+  "dataset_version": "1.0.0",
+  "description": "Immutable v1 deterministic benchmark for decision, context safety, provenance, idempotency, and selected reliability contracts.",
+  "benchmark_intent": "Release-gate representative Northstar behavior without LLM, fuzzy, or subjective grading.",
+  "expected_decision_engine_version": "northstar-expense-decision/1.0.0",
+  "expected_risk_engine_version": "northstar-anomaly-risk/1.0.0",
+  "expected_risk_catalog_hash": "7e8e4c273e9355273f894b1e1c3adf70d6fb5eb530f1579b8435d3256d2c5e33",
+  "case_files": [
+    "decision_cases.json",
+    "risk_cases.json",
+    "context_safety_cases.json",
+    "provenance_cases.json",
+    "reliability_cases.json"
+  ],
+  "expected_case_count": 37,
+  "metric_names": [
+    "decision_outcome_accuracy", "risk_level_accuracy", "approval_routing_accuracy",
+    "risk_signal_accuracy", "policy_binding_accuracy", "context_resolution_accuracy",
+    "abstention_recall", "abstention_precision", "unsafe_action_rate",
+    "provenance_completeness", "provenance_verification_rate", "idempotency_correctness",
+    "transient_recovery_rate", "dead_letter_correctness", "replay_recovery_rate",
+    "logical_duplicate_side_effect_rate"
+  ],
+  "minimum_cases": 24,
+  "maximum_cases": 40,
+  "required_categories": [
+    "decision", "risk", "context_safety", "provenance",
+    "historical_context", "idempotency", "reliability"
+  ]
+}

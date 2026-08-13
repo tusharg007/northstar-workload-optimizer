@@ -1,10 +1,16 @@
 # North Star Current Architecture Baseline
 
-Status: **CURRENT IMPLEMENTED** after Gate 4B verification on 2026-08-13.
+Status: **CURRENT IMPLEMENTED** after Gate 5 verification on 2026-08-13.
 
 This document records the system that exists today. It is not the target v2
 architecture. Items under **PLANNED FOR V2** are boundaries only; the detailed
 sequence is in `V2_PLAN.md`.
+
+Gate 5 adds no product capability or database migration. A versioned 37-case
+deterministic benchmark now release-gates decisions, exact risk signals,
+routing, governed-context resolution and abstention, provenance, idempotency,
+and selected outbox recovery behavior. FAST and POSTGRES passed 37/37; the
+isolated n8n LIVE subset passed 11/11. See `G5_EVALUATION_HARNESS.md`.
 
 ## Component diagram
 

@@ -1,0 +1,36 @@
+[
+  {
+    "case_id":"provenance_normal_complete","category":"provenance","description":"Normal decision captures complete and verifiable automated evidence.","profiles":["fast","postgres"],"scenario":"default",
+    "payload":{"expense_id":"G5-P-001","employee_id":"EMP-P1","employee_name":"Provenance One","department":"Operations","transaction_date":"2025-01-15","merchant":"Merchant","category":"Travel","description":"Business travel","amount":640.0,"currency":"USD","payment_method":"Corporate Card","receipt_attached":true},
+    "expected":{"status":"PENDING_APPROVAL","risk_level":"LOW","approver_role":"Department Head","provenance_complete":true,"provenance_verified":true}
+  },
+  {
+    "case_id":"provenance_human_decision","category":"provenance","description":"Approval transition adds exactly one verifiable human evidence record.","profiles":["fast","postgres","live"],"scenario":"approval",
+    "payload":{"expense_id":"G5-P-002","employee_id":"EMP-P2","employee_name":"Provenance Two","department":"Operations","transaction_date":"2025-01-15","merchant":"Merchant","category":"Travel","description":"Business travel","amount":640.0,"currency":"USD","payment_method":"Corporate Card","receipt_attached":true},
+    "expected":{"status":"PENDING_APPROVAL","risk_level":"LOW","approver_role":"Department Head","provenance_complete":true,"provenance_verified":true,"human_evidence":true}
+  },
+  {
+    "case_id":"provenance_corruption_detected","category":"provenance","description":"Controlled evidence corruption makes deterministic verification fail.","profiles":["fast","postgres"],"scenario":"provenance_corruption",
+    "payload":{"expense_id":"G5-P-003","employee_id":"EMP-P3","employee_name":"Provenance Three","department":"Operations","transaction_date":"2025-01-15","merchant":"Merchant","category":"Travel","description":"Business travel","amount":640.0,"currency":"USD","payment_method":"Corporate Card","receipt_attached":true},
+    "expected":{"status":"PENDING_APPROVAL","risk_level":"LOW","approver_role":"Department Head","provenance_complete":true,"provenance_verified":false}
+  },
+  {
+    "case_id":"historical_resolution_v1_v2","category":"historical_context","description":"As-of resolution preserves version one while future context resolves version two.","profiles":["fast","postgres"],"scenario":"historical_resolution",
+    "expected":{"context_version":2}
+  },
+  {
+    "case_id":"historical_provenance_retains_v1","category":"historical_context","description":"Immutable historical provenance stays bound to version one after version two exists.","profiles":["fast","postgres"],"scenario":"historical_provenance",
+    "payload":{"expense_id":"G5-H-002","employee_id":"EMP-H2","employee_name":"History Two","department":"Operations","transaction_date":"2025-01-15","merchant":"Merchant","category":"Travel","description":"Business travel","amount":640.0,"currency":"USD","payment_method":"Corporate Card","receipt_attached":true},
+    "expected":{"context_version":1}
+  },
+  {
+    "case_id":"idempotency_exact_replay","category":"idempotency","description":"Exact replay preserves the original decision provenance and row count.","profiles":["fast","postgres","live"],"scenario":"idempotent_replay",
+    "payload":{"expense_id":"G5-I-001","employee_id":"EMP-I1","employee_name":"Idempotency One","department":"Operations","transaction_date":"2025-01-15","merchant":"Merchant","category":"Travel","description":"Business travel","amount":640.0,"currency":"USD","payment_method":"Corporate Card","receipt_attached":true},
+    "expected":{"status":"PENDING_APPROVAL","risk_level":"LOW","approver_role":"Department Head","provenance_complete":true,"provenance_verified":true,"idempotency_preserved":true}
+  },
+  {
+    "case_id":"idempotency_changed_payload_conflict","category":"idempotency","description":"Changed payload under the same key is rejected without replacing provenance.","profiles":["fast","postgres"],"scenario":"idempotency_conflict",
+    "payload":{"expense_id":"G5-I-002","employee_id":"EMP-I2","employee_name":"Idempotency Two","department":"Operations","transaction_date":"2025-01-15","merchant":"Merchant","category":"Travel","description":"Business travel","amount":640.0,"currency":"USD","payment_method":"Corporate Card","receipt_attached":true},
+    "expected":{"status":"PENDING_APPROVAL","risk_level":"LOW","approver_role":"Department Head","provenance_complete":true,"provenance_verified":true,"idempotency_preserved":true}
+  }
+]

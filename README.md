@@ -188,6 +188,10 @@ the existing analytics assets:
   execution manifest before processing, safely abstains on context drift, and
   records deterministic policy, term, rule, trust, risk, and later human
   evidence with verifiable hashes.
+- A source-controlled **deterministic evaluation harness** release-gates 37
+  curated cases across decision, risk, context safety, provenance, historical
+  context, idempotency, and reliability. It uses exact ground truth, strict
+  thresholds, SQLite/PostgreSQL/LIVE profiles, and no LLM judge.
 
 See [DEMO.md](DEMO.md) for the shortest Windows setup, import steps, commands,
 and five-minute interview sequence. Gate 3A design and runtime proof are in
@@ -196,3 +200,6 @@ Gate 4A design and verification are in
 [docs/architecture/G4A_GOVERNED_CONTEXT_REGISTRY.md](docs/architecture/G4A_GOVERNED_CONTEXT_REGISTRY.md).
 Gate 4B design and PostgreSQL/live verification are in
 [docs/architecture/G4B_DECISION_PROVENANCE.md](docs/architecture/G4B_DECISION_PROVENANCE.md).
+Gate 5 commands and verified benchmark evidence are in
+[evals/README.md](evals/README.md) and
+[docs/architecture/G5_EVALUATION_HARNESS.md](docs/architecture/G5_EVALUATION_HARNESS.md).

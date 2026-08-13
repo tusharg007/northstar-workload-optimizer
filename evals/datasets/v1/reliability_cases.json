@@ -1,0 +1,22 @@
+[
+  {
+    "case_id":"reliability_transient_resume_recovers","category":"reliability","description":"Transient approval-resume delivery failure retries and succeeds.","profiles":["fast","postgres","live"],"scenario":"outbox_transient_resume",
+    "payload":{"expense_id":"G5-L-001","employee_id":"EMP-L1","employee_name":"Reliability One","department":"IT","transaction_date":"2025-01-18","merchant":"Cloud Vendor","category":"Software & Subscriptions","description":"DUPLICATE annual platform renewal","amount":3000.0,"currency":"USD","payment_method":"Corporate Card","receipt_attached":false},
+    "expected":{"reliability_outcome":"RECOVERED"}
+  },
+  {
+    "case_id":"reliability_transient_notification_recovers","category":"reliability","description":"Transient notification delivery failure retries and succeeds.","profiles":["fast","postgres","live"],"scenario":"outbox_transient_notification",
+    "payload":{"expense_id":"G5-L-002","employee_id":"EMP-L2","employee_name":"Reliability Two","department":"IT","transaction_date":"2025-01-18","merchant":"Cloud Vendor","category":"Software & Subscriptions","description":"DUPLICATE annual platform renewal","amount":3000.0,"currency":"USD","payment_method":"Corporate Card","receipt_attached":false},
+    "expected":{"reliability_outcome":"RECOVERED"}
+  },
+  {
+    "case_id":"reliability_poison_dead_letters","category":"reliability","description":"Poison delivery reaches dead-letter after the bounded retry budget.","profiles":["fast","postgres","live"],"scenario":"outbox_dead_letter",
+    "payload":{"expense_id":"G5-L-003","employee_id":"EMP-L3","employee_name":"Reliability Three","department":"IT","transaction_date":"2025-01-18","merchant":"Cloud Vendor","category":"Software & Subscriptions","description":"DUPLICATE annual platform renewal","amount":3000.0,"currency":"USD","payment_method":"Corporate Card","receipt_attached":false},
+    "expected":{"reliability_outcome":"DEAD_LETTER"}
+  },
+  {
+    "case_id":"reliability_dead_letter_replay","category":"reliability","description":"Dead-letter replay retains attempts and completes delivery exactly once.","profiles":["fast","postgres","live"],"scenario":"outbox_replay",
+    "payload":{"expense_id":"G5-L-004","employee_id":"EMP-L4","employee_name":"Reliability Four","department":"IT","transaction_date":"2025-01-18","merchant":"Cloud Vendor","category":"Software & Subscriptions","description":"DUPLICATE annual platform renewal","amount":3000.0,"currency":"USD","payment_method":"Corporate Card","receipt_attached":false},
+    "expected":{"reliability_outcome":"REPLAYED_AND_DELIVERED"}
+  }
+]

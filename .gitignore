@@ -48,3 +48,7 @@ test-*.db
 *.db-journal
 *.db-shm
 *.db-wal
+
+# Generated deterministic evaluation reports
+evals/reports/*
+!evals/reports/.gitkeep

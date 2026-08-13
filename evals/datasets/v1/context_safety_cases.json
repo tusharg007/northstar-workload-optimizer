@@ -1,0 +1,37 @@
+[
+  {
+    "case_id":"context_policy_missing","category":"context_safety","description":"Missing required routing policy causes safe abstention.","profiles":["fast","postgres","live"],"scenario":"policy_missing",
+    "payload":{"expense_id":"G5-C-001","employee_id":"EMP-C1","employee_name":"Context One","department":"Operations","transaction_date":"2025-01-15","merchant":"Merchant","category":"Travel","description":"Business travel","amount":640.0,"currency":"USD","payment_method":"Corporate Card","receipt_attached":true},
+    "expected":{"http_status":409,"abstained":true,"error_code":"CONTEXT_NOT_AUTHORITATIVE","reason_code":"POLICY_MISSING","binding_state":"MISSING"}
+  },
+  {
+    "case_id":"context_policy_mismatch","category":"context_safety","description":"Governed parameter mismatch causes safe abstention.","profiles":["fast","postgres"],"scenario":"policy_mismatch",
+    "payload":{"expense_id":"G5-C-002","employee_id":"EMP-C2","employee_name":"Context Two","department":"Operations","transaction_date":"2025-01-15","merchant":"Merchant","category":"Travel","description":"Business travel","amount":640.0,"currency":"USD","payment_method":"Corporate Card","receipt_attached":true},
+    "expected":{"http_status":409,"abstained":true,"error_code":"CONTEXT_NOT_AUTHORITATIVE","reason_code":"POLICY_ENGINE_MISMATCH","binding_state":"MISMATCH"}
+  },
+  {
+    "case_id":"context_policy_conflict","category":"context_safety","description":"Overlapping certified policy versions cause safe abstention.","profiles":["fast","postgres"],"scenario":"policy_conflict",
+    "payload":{"expense_id":"G5-C-003","employee_id":"EMP-C3","employee_name":"Context Three","department":"Operations","transaction_date":"2025-01-15","merchant":"Merchant","category":"Travel","description":"Business travel","amount":640.0,"currency":"USD","payment_method":"Corporate Card","receipt_attached":true},
+    "expected":{"http_status":409,"abstained":true,"error_code":"CONTEXT_NOT_AUTHORITATIVE","reason_code":"POLICY_CONFLICT","binding_state":"CONFLICTED"}
+  },
+  {
+    "case_id":"context_policy_stale","category":"context_safety","description":"Overdue governed policy review causes safe abstention.","profiles":["fast","postgres"],"scenario":"policy_stale",
+    "payload":{"expense_id":"G5-C-004","employee_id":"EMP-C4","employee_name":"Context Four","department":"Operations","transaction_date":"2025-01-15","merchant":"Merchant","category":"Travel","description":"Business travel","amount":640.0,"currency":"USD","payment_method":"Corporate Card","receipt_attached":true},
+    "expected":{"http_status":409,"abstained":true,"error_code":"CONTEXT_NOT_AUTHORITATIVE","reason_code":"POLICY_UNTRUSTED","binding_state":"UNTRUSTED"}
+  },
+  {
+    "case_id":"context_owner_inactive","category":"context_safety","description":"Inactive governance owner causes safe abstention.","profiles":["fast","postgres"],"scenario":"owner_inactive",
+    "payload":{"expense_id":"G5-C-005","employee_id":"EMP-C5","employee_name":"Context Five","department":"Operations","transaction_date":"2025-01-15","merchant":"Merchant","category":"Travel","description":"Business travel","amount":640.0,"currency":"USD","payment_method":"Corporate Card","receipt_attached":true},
+    "expected":{"http_status":409,"abstained":true,"error_code":"CONTEXT_NOT_AUTHORITATIVE","reason_code":"POLICY_UNTRUSTED","binding_state":"UNTRUSTED"}
+  },
+  {
+    "case_id":"context_trust_expired","category":"context_safety","description":"Expired freshness trust signal causes safe abstention.","profiles":["fast","postgres"],"scenario":"trust_expired",
+    "payload":{"expense_id":"G5-C-006","employee_id":"EMP-C6","employee_name":"Context Six","department":"Operations","transaction_date":"2025-01-15","merchant":"Merchant","category":"Travel","description":"Business travel","amount":640.0,"currency":"USD","payment_method":"Corporate Card","receipt_attached":true},
+    "expected":{"http_status":409,"abstained":true,"error_code":"CONTEXT_NOT_AUTHORITATIVE","reason_code":"POLICY_UNTRUSTED","binding_state":"UNTRUSTED"}
+  },
+  {
+    "case_id":"context_policy_drift_negative_control","category":"context_safety","description":"Policy drift negative control proves no financial action is taken.","profiles":["fast","postgres","live"],"scenario":"policy_drift",
+    "payload":{"expense_id":"G5-C-007","employee_id":"EMP-C7","employee_name":"Context Seven","department":"Operations","transaction_date":"2025-01-15","merchant":"Merchant","category":"Travel","description":"Business travel","amount":640.0,"currency":"USD","payment_method":"Corporate Card","receipt_attached":true},
+    "expected":{"http_status":409,"abstained":true,"error_code":"CONTEXT_NOT_AUTHORITATIVE","reason_code":"POLICY_ENGINE_MISMATCH","binding_state":"MISMATCH"}
+  }
+]

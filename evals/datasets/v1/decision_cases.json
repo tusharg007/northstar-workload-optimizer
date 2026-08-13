@@ -1,0 +1,73 @@
+[
+  {
+    "case_id": "decision_auto_below_500", "category": "decision",
+    "description": "Low-risk expense below the direct-manager auto-approval ceiling.",
+    "profiles": ["fast", "postgres"], "scenario": "default",
+    "payload": {"expense_id":"G5-D-001","employee_id":"EMP-1","employee_name":"Case One","department":"Operations","transaction_date":"2025-01-15","merchant":"Merchant","category":"Travel","description":"Business travel","amount":499.99,"currency":"USD","payment_method":"Corporate Card","receipt_attached":true},
+    "expected": {"status":"AUTO_APPROVED","risk_level":"LOW","approver_role":"Direct Manager","binding_state":"MATCHED","provenance_complete":true,"provenance_verified":true}
+  },
+  {
+    "case_id": "decision_auto_at_500", "category": "decision",
+    "description": "Exact direct-manager approval boundary remains auto-approved.",
+    "profiles": ["fast", "postgres"], "scenario": "default",
+    "payload": {"expense_id":"G5-D-002","employee_id":"EMP-2","employee_name":"Case Two","department":"Operations","transaction_date":"2025-01-15","merchant":"Merchant","category":"Travel","description":"Business travel","amount":500.0,"currency":"USD","payment_method":"Corporate Card","receipt_attached":true},
+    "expected": {"status":"AUTO_APPROVED","risk_level":"LOW","approver_role":"Direct Manager","binding_state":"MATCHED","provenance_complete":true,"provenance_verified":true}
+  },
+  {
+    "case_id": "decision_department_above_500", "category": "decision",
+    "description": "First value above the auto-approval ceiling routes to department head.",
+    "profiles": ["fast", "postgres", "live"], "scenario": "default",
+    "payload": {"expense_id":"G5-D-003","employee_id":"EMP-3","employee_name":"Case Three","department":"Operations","transaction_date":"2025-01-15","merchant":"Merchant","category":"Travel","description":"Business travel","amount":500.01,"currency":"USD","payment_method":"Corporate Card","receipt_attached":true},
+    "expected": {"status":"PENDING_APPROVAL","risk_level":"LOW","approver_role":"Department Head","binding_state":"MATCHED","provenance_complete":true,"provenance_verified":true}
+  },
+  {
+    "case_id": "decision_department_upper_safe", "category": "decision",
+    "description": "Safe value near the department-head tier upper range preserves routing.",
+    "profiles": ["fast", "postgres"], "scenario": "default",
+    "payload": {"expense_id":"G5-D-004","employee_id":"EMP-4","employee_name":"Case Four","department":"Operations","transaction_date":"2025-01-15","merchant":"Merchant","category":"Travel","description":"Business travel","amount":1899.0,"currency":"USD","payment_method":"Corporate Card","receipt_attached":true},
+    "expected": {"status":"PENDING_APPROVAL","risk_level":"LOW","approver_role":"Department Head","binding_state":"MATCHED","provenance_complete":true,"provenance_verified":true}
+  },
+  {
+    "case_id": "decision_finance_above_2000", "category": "decision",
+    "description": "First value above department-head ceiling routes to finance director.",
+    "profiles": ["fast", "postgres"], "scenario": "default",
+    "payload": {"expense_id":"G5-D-005","employee_id":"EMP-5","employee_name":"Case Five","department":"Operations","transaction_date":"2025-01-15","merchant":"Merchant","category":"Travel","description":"Business travel","amount":2001.0,"currency":"USD","payment_method":"Corporate Card","receipt_attached":true},
+    "expected": {"status":"PENDING_APPROVAL","risk_level":"MEDIUM","approver_role":"Finance Director","binding_state":"MATCHED","provenance_complete":true,"provenance_verified":true}
+  },
+  {
+    "case_id": "decision_vp_above_5000", "category": "decision",
+    "description": "Value above finance ceiling routes to executive approver before risk escalation.",
+    "profiles": ["fast", "postgres"], "scenario": "default",
+    "payload": {"expense_id":"G5-D-006","employee_id":"EMP-6","employee_name":"Case Six","department":"Operations","transaction_date":"2025-01-15","merchant":"Merchant","category":"Equipment","description":"Business equipment purchase","amount":5001.0,"currency":"USD","payment_method":"Corporate Card","receipt_attached":true},
+    "expected": {"status":"PENDING_APPROVAL","risk_level":"MEDIUM","approver_role":"VP / C-Suite","binding_state":"MATCHED","provenance_complete":true,"provenance_verified":true}
+  },
+  {
+    "case_id": "decision_suspicious_escalation", "category": "decision",
+    "description": "Canonical suspicious expense escalates to finance and compliance.",
+    "profiles": ["fast", "postgres", "live"], "scenario": "default",
+    "payload": {"expense_id":"G5-D-007","employee_id":"EMP-7","employee_name":"Case Seven","department":"IT","transaction_date":"2025-01-18","merchant":"Cloud Vendor","category":"Software & Subscriptions","description":"DUPLICATE annual platform renewal","amount":3000.0,"currency":"USD","payment_method":"Corporate Card","receipt_attached":false},
+    "expected": {"status":"ESCALATED","risk_level":"CRITICAL","approver_role":"Finance Director + Compliance","binding_state":"MATCHED","provenance_complete":true,"provenance_verified":true}
+  },
+  {
+    "case_id": "decision_future_date_rejected", "category": "decision",
+    "description": "A future transaction date is rejected before routing.",
+    "profiles": ["fast", "postgres"], "scenario": "default",
+    "payload": {"expense_id":"G5-D-008","employee_id":"EMP-8","employee_name":"Case Eight","department":"Finance","transaction_date":"2099-01-15","merchant":"Merchant","category":"Travel","description":"Impossible future travel","amount":100.01,"currency":"USD","payment_method":"Corporate Card","receipt_attached":true},
+    "expected": {"status":"REJECTED_VALIDATION","binding_state":"MATCHED"}
+  },
+  {
+    "case_id":"decision_receipt_below_75","category":"decision","description":"Missing receipt at one cent below the policy threshold does not trigger the receipt rule.","profiles":["fast","postgres"],"scenario":"default",
+    "payload":{"expense_id":"G5-D-009","employee_id":"EMP-9","employee_name":"Case Nine","department":"Operations","transaction_date":"2025-01-15","merchant":"Merchant","category":"Travel","description":"Boundary purchase","amount":74.99,"currency":"USD","payment_method":"Corporate Card","receipt_attached":false},
+    "expected":{"status":"AUTO_APPROVED","risk_level":"LOW","approver_role":"Direct Manager","triggered_rules":["AMOUNT_APPROVAL_TIERS"],"provenance_complete":true,"provenance_verified":true}
+  },
+  {
+    "case_id":"decision_receipt_at_75","category":"decision","description":"Missing receipt exactly at the policy threshold does not trigger the strict greater-than rule.","profiles":["fast","postgres"],"scenario":"default",
+    "payload":{"expense_id":"G5-D-010","employee_id":"EMP-10","employee_name":"Case Ten","department":"Operations","transaction_date":"2025-01-15","merchant":"Merchant","category":"Travel","description":"Boundary purchase","amount":75.0,"currency":"USD","payment_method":"Corporate Card","receipt_attached":false},
+    "expected":{"status":"AUTO_APPROVED","risk_level":"LOW","approver_role":"Direct Manager","triggered_rules":["AMOUNT_APPROVAL_TIERS"],"provenance_complete":true,"provenance_verified":true}
+  },
+  {
+    "case_id":"decision_receipt_above_75","category":"decision","description":"Missing receipt one cent above the policy threshold triggers the receipt warning rule.","profiles":["fast","postgres"],"scenario":"default",
+    "payload":{"expense_id":"G5-D-011","employee_id":"EMP-11","employee_name":"Case Eleven","department":"Operations","transaction_date":"2025-01-15","merchant":"Merchant","category":"Travel","description":"Boundary purchase","amount":75.01,"currency":"USD","payment_method":"Corporate Card","receipt_attached":false},
+    "expected":{"status":"AUTO_APPROVED","risk_level":"LOW","approver_role":"Direct Manager","triggered_rules":["AMOUNT_APPROVAL_TIERS","RECEIPT_REQUIRED_THRESHOLD"],"provenance_complete":true,"provenance_verified":true}
+  }
+]

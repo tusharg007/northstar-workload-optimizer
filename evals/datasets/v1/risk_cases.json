@@ -1,0 +1,42 @@
+[
+  {
+    "case_id":"risk_no_signals","category":"risk","description":"Weekday ordinary expense triggers no risk signal.","profiles":["fast","postgres"],"scenario":"default",
+    "payload":{"expense_id":"G5-R-001","employee_id":"EMP-R1","employee_name":"Risk One","department":"Operations","transaction_date":"2025-01-15","merchant":"Merchant","category":"Travel","description":"Ordinary travel","amount":101.0,"currency":"USD","payment_method":"Corporate Card","receipt_attached":true},
+    "expected":{"status":"AUTO_APPROVED","risk_level":"LOW","approver_role":"Direct Manager","triggered_signals":[],"non_triggered_signals":["STATISTICAL_OUTLIER","WEEKEND_TRANSACTION","SUSPICIOUS_ROUND_AMOUNT","MISSING_RECEIPT_HIGH_VALUE","POTENTIAL_DUPLICATE","RISK_SCORE_CLASSIFICATION"],"provenance_complete":true,"provenance_verified":true}
+  },
+  {
+    "case_id":"risk_weekend_below_classification","category":"risk","description":"Weekend signal alone stays below the medium-risk threshold.","profiles":["fast","postgres"],"scenario":"default",
+    "payload":{"expense_id":"G5-R-002","employee_id":"EMP-R2","employee_name":"Risk Two","department":"Operations","transaction_date":"2025-01-18","merchant":"Merchant","category":"Travel","description":"Weekend travel","amount":101.0,"currency":"USD","payment_method":"Corporate Card","receipt_attached":true},
+    "expected":{"status":"AUTO_APPROVED","risk_level":"LOW","approver_role":"Direct Manager","triggered_signals":["WEEKEND_TRANSACTION"],"non_triggered_signals":["STATISTICAL_OUTLIER","SUSPICIOUS_ROUND_AMOUNT","MISSING_RECEIPT_HIGH_VALUE","POTENTIAL_DUPLICATE","RISK_SCORE_CLASSIFICATION"],"provenance_complete":true,"provenance_verified":true}
+  },
+  {
+    "case_id":"risk_round_medium","category":"risk","description":"Round travel amount alone reaches the medium-risk boundary.","profiles":["fast","postgres"],"scenario":"default",
+    "payload":{"expense_id":"G5-R-003","employee_id":"EMP-R3","employee_name":"Risk Three","department":"Operations","transaction_date":"2025-01-15","merchant":"Merchant","category":"Travel","description":"Round travel purchase","amount":600.0,"currency":"USD","payment_method":"Corporate Card","receipt_attached":true},
+    "expected":{"status":"PENDING_APPROVAL","risk_level":"MEDIUM","approver_role":"Department Head","triggered_signals":["SUSPICIOUS_ROUND_AMOUNT"],"non_triggered_signals":["STATISTICAL_OUTLIER","WEEKEND_TRANSACTION","MISSING_RECEIPT_HIGH_VALUE","POTENTIAL_DUPLICATE","RISK_SCORE_CLASSIFICATION"],"provenance_complete":true,"provenance_verified":true}
+  },
+  {
+    "case_id":"risk_missing_receipt_medium","category":"risk","description":"High-value missing receipt independently produces medium risk.","profiles":["fast","postgres"],"scenario":"default",
+    "payload":{"expense_id":"G5-R-004","employee_id":"EMP-R4","employee_name":"Risk Four","department":"Operations","transaction_date":"2025-01-15","merchant":"Merchant","category":"Travel","description":"Travel without receipt","amount":251.0,"currency":"USD","payment_method":"Corporate Card","receipt_attached":false},
+    "expected":{"status":"PENDING_APPROVAL","risk_level":"MEDIUM","approver_role":"Direct Manager","triggered_signals":["MISSING_RECEIPT_HIGH_VALUE"],"non_triggered_signals":["STATISTICAL_OUTLIER","WEEKEND_TRANSACTION","SUSPICIOUS_ROUND_AMOUNT","POTENTIAL_DUPLICATE","RISK_SCORE_CLASSIFICATION"],"provenance_complete":true,"provenance_verified":true}
+  },
+  {
+    "case_id":"risk_duplicate_medium","category":"risk","description":"Duplicate marker independently produces medium risk.","profiles":["fast","postgres"],"scenario":"default",
+    "payload":{"expense_id":"G5-R-005","employee_id":"EMP-R5","employee_name":"Risk Five","department":"Operations","transaction_date":"2025-01-15","merchant":"Merchant","category":"Travel","description":"DUPLICATE taxi charge","amount":51.0,"currency":"USD","payment_method":"Corporate Card","receipt_attached":true},
+    "expected":{"status":"PENDING_APPROVAL","risk_level":"MEDIUM","approver_role":"Direct Manager","triggered_signals":["POTENTIAL_DUPLICATE"],"non_triggered_signals":["STATISTICAL_OUTLIER","WEEKEND_TRANSACTION","SUSPICIOUS_ROUND_AMOUNT","MISSING_RECEIPT_HIGH_VALUE","RISK_SCORE_CLASSIFICATION"],"provenance_complete":true,"provenance_verified":true}
+  },
+  {
+    "case_id":"risk_outlier_medium","category":"risk","description":"Statistical outlier independently produces medium risk.","profiles":["fast","postgres"],"scenario":"default",
+    "payload":{"expense_id":"G5-R-006","employee_id":"EMP-R6","employee_name":"Risk Six","department":"Operations","transaction_date":"2025-01-15","merchant":"Merchant","category":"Meals & Entertainment","description":"Client meal","amount":199.0,"currency":"USD","payment_method":"Corporate Card","receipt_attached":true},
+    "expected":{"status":"PENDING_APPROVAL","risk_level":"MEDIUM","approver_role":"Direct Manager","triggered_signals":["STATISTICAL_OUTLIER"],"non_triggered_signals":["WEEKEND_TRANSACTION","SUSPICIOUS_ROUND_AMOUNT","MISSING_RECEIPT_HIGH_VALUE","POTENTIAL_DUPLICATE","RISK_SCORE_CLASSIFICATION"],"provenance_complete":true,"provenance_verified":true}
+  },
+  {
+    "case_id":"risk_round_missing_high","category":"risk","description":"Round amount plus missing receipt reaches high risk and escalates.","profiles":["fast","postgres"],"scenario":"default",
+    "payload":{"expense_id":"G5-R-007","employee_id":"EMP-R7","employee_name":"Risk Seven","department":"Operations","transaction_date":"2025-01-15","merchant":"Merchant","category":"Travel","description":"Travel without receipt","amount":600.0,"currency":"USD","payment_method":"Corporate Card","receipt_attached":false},
+    "expected":{"status":"ESCALATED","risk_level":"HIGH","approver_role":"Finance Director + Compliance","triggered_signals":["SUSPICIOUS_ROUND_AMOUNT","MISSING_RECEIPT_HIGH_VALUE"],"non_triggered_signals":["STATISTICAL_OUTLIER","WEEKEND_TRANSACTION","POTENTIAL_DUPLICATE","RISK_SCORE_CLASSIFICATION"],"provenance_complete":true,"provenance_verified":true}
+  },
+  {
+    "case_id":"risk_all_signals_critical","category":"risk","description":"Canonical suspicious payload triggers all five actionable signals.","profiles":["fast","postgres","live"],"scenario":"default",
+    "payload":{"expense_id":"G5-R-008","employee_id":"EMP-R8","employee_name":"Risk Eight","department":"IT","transaction_date":"2025-01-18","merchant":"Cloud Vendor","category":"Software & Subscriptions","description":"DUPLICATE annual platform renewal","amount":3000.0,"currency":"USD","payment_method":"Corporate Card","receipt_attached":false},
+    "expected":{"status":"ESCALATED","risk_level":"CRITICAL","approver_role":"Finance Director + Compliance","triggered_signals":["STATISTICAL_OUTLIER","WEEKEND_TRANSACTION","SUSPICIOUS_ROUND_AMOUNT","MISSING_RECEIPT_HIGH_VALUE","POTENTIAL_DUPLICATE"],"non_triggered_signals":["RISK_SCORE_CLASSIFICATION"],"provenance_complete":true,"provenance_verified":true}
+  }
+]

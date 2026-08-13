@@ -1,0 +1,38 @@
+{
+  "dataset_version": "1.0.0",
+  "case_count": 37,
+  "category_counts": {"context_safety":7,"decision":11,"historical_context":2,"idempotency":2,"provenance":3,"reliability":4,"risk":8},
+  "case_ids": ["context_owner_inactive","context_policy_conflict","context_policy_drift_negative_control","context_policy_mismatch","context_policy_missing","context_policy_stale","context_trust_expired","decision_auto_at_500","decision_auto_below_500","decision_department_above_500","decision_department_upper_safe","decision_finance_above_2000","decision_future_date_rejected","decision_receipt_above_75","decision_receipt_at_75","decision_receipt_below_75","decision_suspicious_escalation","decision_vp_above_5000","historical_provenance_retains_v1","historical_resolution_v1_v2","idempotency_changed_payload_conflict","idempotency_exact_replay","provenance_corruption_detected","provenance_human_decision","provenance_normal_complete","reliability_dead_letter_replay","reliability_poison_dead_letters","reliability_transient_notification_recovers","reliability_transient_resume_recovers","risk_all_signals_critical","risk_duplicate_medium","risk_missing_receipt_medium","risk_no_signals","risk_outlier_medium","risk_round_medium","risk_round_missing_high","risk_weekend_below_classification"],
+  "profile_case_counts": {"fast":37,"postgres":37,"live":11},
+  "profile_case_ids": {
+    "fast": ["context_owner_inactive","context_policy_conflict","context_policy_drift_negative_control","context_policy_mismatch","context_policy_missing","context_policy_stale","context_trust_expired","decision_auto_at_500","decision_auto_below_500","decision_department_above_500","decision_department_upper_safe","decision_finance_above_2000","decision_future_date_rejected","decision_receipt_above_75","decision_receipt_at_75","decision_receipt_below_75","decision_suspicious_escalation","decision_vp_above_5000","historical_provenance_retains_v1","historical_resolution_v1_v2","idempotency_changed_payload_conflict","idempotency_exact_replay","provenance_corruption_detected","provenance_human_decision","provenance_normal_complete","reliability_dead_letter_replay","reliability_poison_dead_letters","reliability_transient_notification_recovers","reliability_transient_resume_recovers","risk_all_signals_critical","risk_duplicate_medium","risk_missing_receipt_medium","risk_no_signals","risk_outlier_medium","risk_round_medium","risk_round_missing_high","risk_weekend_below_classification"],
+    "postgres": ["context_owner_inactive","context_policy_conflict","context_policy_drift_negative_control","context_policy_mismatch","context_policy_missing","context_policy_stale","context_trust_expired","decision_auto_at_500","decision_auto_below_500","decision_department_above_500","decision_department_upper_safe","decision_finance_above_2000","decision_future_date_rejected","decision_receipt_above_75","decision_receipt_at_75","decision_receipt_below_75","decision_suspicious_escalation","decision_vp_above_5000","historical_provenance_retains_v1","historical_resolution_v1_v2","idempotency_changed_payload_conflict","idempotency_exact_replay","provenance_corruption_detected","provenance_human_decision","provenance_normal_complete","reliability_dead_letter_replay","reliability_poison_dead_letters","reliability_transient_notification_recovers","reliability_transient_resume_recovers","risk_all_signals_critical","risk_duplicate_medium","risk_missing_receipt_medium","risk_no_signals","risk_outlier_medium","risk_round_medium","risk_round_missing_high","risk_weekend_below_classification"],
+    "live": ["context_policy_drift_negative_control","context_policy_missing","decision_department_above_500","decision_suspicious_escalation","idempotency_exact_replay","provenance_human_decision","reliability_dead_letter_replay","reliability_poison_dead_letters","reliability_transient_notification_recovers","reliability_transient_resume_recovers","risk_all_signals_critical"]
+  },
+  "decision_engine_version": "northstar-expense-decision/1.0.0",
+  "risk_engine_version": "northstar-anomaly-risk/1.0.0",
+  "risk_catalog_hash": "7e8e4c273e9355273f894b1e1c3adf70d6fb5eb530f1579b8435d3256d2c5e33",
+  "metric_thresholds": {
+    "decision_outcome_accuracy":1.0,"risk_level_accuracy":1.0,"approval_routing_accuracy":1.0,
+    "risk_signal_accuracy":1.0,"policy_binding_accuracy":1.0,"context_resolution_accuracy":1.0,
+    "abstention_recall":1.0,"abstention_precision":1.0,"unsafe_action_rate":0.0,
+    "provenance_completeness":1.0,"provenance_verification_rate":1.0,
+    "idempotency_correctness":1.0,"transient_recovery_rate":1.0,
+    "dead_letter_correctness":1.0,"replay_recovery_rate":1.0,
+    "logical_duplicate_side_effect_rate":0.0
+  },
+  "policy_manifest": {
+    "EXPENSE_SUBMISSION_REQUIREMENTS": {
+      "CATEGORY_SPENDING_LIMITS":{"effect":"WARNING","limits":{"Travel":5000,"Meals & Entertainment":500,"Office Supplies":300,"Software & Subscriptions":2000,"Training & Development":3000,"Client Entertainment":2000,"Transportation":800,"Telecommunications":500,"Equipment":5000,"Miscellaneous":1000},"operator":"greater_than"},
+      "RECEIPT_REQUIRED_THRESHOLD":{"effect":"WARNING","amount_greater_than":75,"receipt_attached":false},
+      "DESCRIPTION_REQUIRED_THRESHOLD":{"effect":"WARNING","amount_greater_than":500,"minimum_trimmed_characters":5},
+      "FUTURE_TRANSACTION_DATE_REJECTED":{"effect":"ERROR","transaction_date":"not_after_processing_date"}
+    },
+    "EXPENSE_APPROVAL_ROUTING": {
+      "AMOUNT_APPROVAL_TIERS":{"tiers":[{"maximum_amount":500,"role":"Direct Manager","level":1,"auto_approve":true},{"maximum_amount":2000,"role":"Department Head","level":2,"auto_approve":false},{"maximum_amount":5000,"role":"Finance Director","level":3,"auto_approve":false},{"maximum_amount":null,"role":"VP / C-Suite","level":4,"auto_approve":false}]},
+      "HIGH_RISK_ESCALATION_ROUTE":{"role":"Finance Director + Compliance","risk_levels":["HIGH","CRITICAL"],"auto_approve":false,"minimum_level":3},
+      "MEDIUM_RISK_REQUIRES_HUMAN":{"risk_levels":["MEDIUM"],"auto_approve":false},
+      "REVIEW_REQUIRED_THRESHOLD":{"any":[{"algorithmic_anomaly":true},{"amount_greater_than":2000}]}
+    }
+  }
+}
