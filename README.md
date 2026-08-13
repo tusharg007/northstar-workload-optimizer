@@ -183,11 +183,16 @@ the existing analytics assets:
   reconciliation, and sanitized n8n Error Trigger incident capture.
 - The **North Star Governed Context Registry** provides versioned business
   terms, certified policy/rule metadata, ownership, provenance, deterministic
-  content hashes, effective-time resolution, and trust/freshness without yet
-  changing expense decisions.
+  content hashes, effective-time resolution, and trust/freshness.
+- **Immutable decision provenance** binds trusted governed policy to the Python
+  execution manifest before processing, safely abstains on context drift, and
+  records deterministic policy, term, rule, trust, risk, and later human
+  evidence with verifiable hashes.
 
 See [DEMO.md](DEMO.md) for the shortest Windows setup, import steps, commands,
 and five-minute interview sequence. Gate 3A design and runtime proof are in
 [docs/architecture/G3A_DURABLE_HITL_SLA.md](docs/architecture/G3A_DURABLE_HITL_SLA.md).
 Gate 4A design and verification are in
 [docs/architecture/G4A_GOVERNED_CONTEXT_REGISTRY.md](docs/architecture/G4A_GOVERNED_CONTEXT_REGISTRY.md).
+Gate 4B design and PostgreSQL/live verification are in
+[docs/architecture/G4B_DECISION_PROVENANCE.md](docs/architecture/G4B_DECISION_PROVENANCE.md).

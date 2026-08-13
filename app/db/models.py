@@ -423,3 +423,79 @@ class TrustSignal(Base):
     source: Mapped[str] = mapped_column(String(255))
     details: Mapped[dict] = mapped_column(JSON_TYPE, default=dict)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utc_now, server_default=func.now())
+
+
+class DecisionProvenance(Base):
+    __tablename__ = "decision_provenance"
+    __table_args__ = (
+        UniqueConstraint("workflow_run_id", name="uq_decision_provenance_workflow_run"),
+        Index("ix_decision_provenance_expense_id", "expense_id"),
+        Index("ix_decision_provenance_correlation_id", "correlation_id"),
+    )
+    provenance_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    expense_id: Mapped[str] = mapped_column(String(128), ForeignKey("expenses.expense_id", ondelete="RESTRICT"))
+    workflow_run_id: Mapped[str] = mapped_column(String(36), ForeignKey("workflow_runs.id", ondelete="RESTRICT"))
+    correlation_id: Mapped[str] = mapped_column(String(128))
+    source_payload_hash: Mapped[str] = mapped_column(String(64))
+    context_as_of: Mapped[datetime] = mapped_column(UTCDateTime())
+    context_resolved_at: Mapped[datetime] = mapped_column(UTCDateTime())
+    automated_status: Mapped[str] = mapped_column(String(64))
+    risk_level: Mapped[str | None] = mapped_column(String(32))
+    approver_role: Mapped[str | None] = mapped_column(String(255))
+    automated_reason: Mapped[str | None] = mapped_column(Text)
+    context_trust_state: Mapped[str] = mapped_column(String(32))
+    decision_engine_version: Mapped[str] = mapped_column(String(128))
+    risk_engine_version: Mapped[str] = mapped_column(String(128))
+    risk_catalog_hash: Mapped[str] = mapped_column(String(64))
+    build_revision: Mapped[str | None] = mapped_column(String(128))
+    provenance_hash: Mapped[str] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utc_now, server_default=func.now())
+
+
+class DecisionPolicyEvidence(Base):
+    __tablename__ = "decision_policy_evidence"
+    __table_args__ = (UniqueConstraint("provenance_id", "policy_version_id", name="uq_decision_policy_evidence"), Index("ix_decision_policy_key_version", "policy_key", "version_number"))
+    evidence_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    provenance_id: Mapped[str] = mapped_column(String(36), ForeignKey("decision_provenance.provenance_id", ondelete="RESTRICT"))
+    policy_id: Mapped[str] = mapped_column(String(36), ForeignKey("policy_definitions.policy_id", ondelete="RESTRICT"))
+    policy_version_id: Mapped[str] = mapped_column(String(36), ForeignKey("policy_versions.policy_version_id", ondelete="RESTRICT"))
+    policy_key: Mapped[str] = mapped_column(String(128)); policy_name: Mapped[str] = mapped_column(String(255))
+    version_number: Mapped[int] = mapped_column(Integer); content_hash: Mapped[str] = mapped_column(String(64))
+    owner_key: Mapped[str] = mapped_column(String(128)); owner_display_name: Mapped[str] = mapped_column(String(255))
+    status: Mapped[str] = mapped_column(String(16)); effective_from: Mapped[datetime] = mapped_column(UTCDateTime())
+    effective_to: Mapped[datetime | None] = mapped_column(UTCDateTime()); trust_state: Mapped[str] = mapped_column(String(32))
+    snapshot_hash: Mapped[str] = mapped_column(String(64)); created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utc_now, server_default=func.now())
+
+
+class DecisionTermEvidence(Base):
+    __tablename__ = "decision_term_evidence"
+    __table_args__ = (UniqueConstraint("provenance_id", "business_term_version_id", name="uq_decision_term_evidence"), Index("ix_decision_term_key_version", "term_key", "version_number"))
+    evidence_id: Mapped[str] = mapped_column(String(36), primary_key=True); provenance_id: Mapped[str] = mapped_column(String(36), ForeignKey("decision_provenance.provenance_id", ondelete="RESTRICT"))
+    business_term_id: Mapped[str] = mapped_column(String(36), ForeignKey("business_terms.term_id", ondelete="RESTRICT")); business_term_version_id: Mapped[str] = mapped_column(String(36), ForeignKey("business_term_versions.term_version_id", ondelete="RESTRICT"))
+    term_key: Mapped[str] = mapped_column(String(128)); canonical_name: Mapped[str] = mapped_column(String(255)); definition: Mapped[str] = mapped_column(Text)
+    version_number: Mapped[int] = mapped_column(Integer); content_hash: Mapped[str] = mapped_column(String(64)); owner_key: Mapped[str] = mapped_column(String(128)); trust_state: Mapped[str] = mapped_column(String(32)); snapshot_hash: Mapped[str] = mapped_column(String(64)); created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utc_now, server_default=func.now())
+
+
+class DecisionRuleEvidence(Base):
+    __tablename__ = "decision_rule_evidence"
+    __table_args__ = (UniqueConstraint("provenance_id", "policy_rule_id", name="uq_decision_rule_evidence"), CheckConstraint("evaluation_status IN ('PASSED','FAILED','TRIGGERED','NOT_APPLICABLE')", name="evaluation_status"), Index("ix_decision_rule_key_triggered", "rule_key", "triggered"))
+    evidence_id: Mapped[str] = mapped_column(String(36), primary_key=True); provenance_id: Mapped[str] = mapped_column(String(36), ForeignKey("decision_provenance.provenance_id", ondelete="RESTRICT")); policy_version_id: Mapped[str] = mapped_column(String(36), ForeignKey("policy_versions.policy_version_id", ondelete="RESTRICT")); policy_rule_id: Mapped[str] = mapped_column(String(36), ForeignKey("policy_rules.rule_id", ondelete="RESTRICT"))
+    rule_key: Mapped[str] = mapped_column(String(128)); rule_name: Mapped[str] = mapped_column(String(255)); rule_type: Mapped[str] = mapped_column(String(64)); severity: Mapped[str] = mapped_column(String(32)); parameters: Mapped[dict] = mapped_column(JSON_TYPE); evaluation_status: Mapped[str] = mapped_column(String(32)); triggered: Mapped[bool] = mapped_column(Boolean); observed_value: Mapped[dict | None] = mapped_column(JSON_TYPE); evaluation_details: Mapped[dict] = mapped_column(JSON_TYPE); evidence_hash: Mapped[str] = mapped_column(String(64)); created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utc_now, server_default=func.now())
+
+
+class DecisionTrustEvidence(Base):
+    __tablename__ = "decision_trust_evidence"
+    __table_args__ = (Index("ix_decision_trust_target", "target_type", "target_key"),)
+    evidence_id: Mapped[str] = mapped_column(String(36), primary_key=True); provenance_id: Mapped[str] = mapped_column(String(36), ForeignKey("decision_provenance.provenance_id", ondelete="RESTRICT")); trust_signal_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("trust_signals.trust_signal_id", ondelete="SET NULL")); target_type: Mapped[str] = mapped_column(String(32)); target_key: Mapped[str] = mapped_column(String(128)); signal_type: Mapped[str] = mapped_column(String(64)); signal_status: Mapped[str] = mapped_column(String(16)); observed_at: Mapped[datetime] = mapped_column(UTCDateTime()); expires_at: Mapped[datetime | None] = mapped_column(UTCDateTime()); source: Mapped[str] = mapped_column(String(255)); details: Mapped[dict] = mapped_column(JSON_TYPE); evidence_hash: Mapped[str] = mapped_column(String(64)); created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utc_now, server_default=func.now())
+
+
+class DecisionRiskEvidence(Base):
+    __tablename__ = "decision_risk_evidence"
+    __table_args__ = (UniqueConstraint("provenance_id", "signal_key", name="uq_decision_risk_evidence"), Index("ix_decision_risk_key_triggered", "signal_key", "triggered"))
+    evidence_id: Mapped[str] = mapped_column(String(36), primary_key=True); provenance_id: Mapped[str] = mapped_column(String(36), ForeignKey("decision_provenance.provenance_id", ondelete="RESTRICT")); signal_key: Mapped[str] = mapped_column(String(128)); canonical_name: Mapped[str] = mapped_column(String(255)); engine_component: Mapped[str] = mapped_column(String(128)); triggered: Mapped[bool] = mapped_column(Boolean); observed_value: Mapped[dict | None] = mapped_column(JSON_TYPE); threshold_or_reference: Mapped[dict | None] = mapped_column(JSON_TYPE); details: Mapped[dict] = mapped_column(JSON_TYPE); signal_definition_hash: Mapped[str] = mapped_column(String(64)); risk_catalog_hash: Mapped[str] = mapped_column(String(64)); evidence_hash: Mapped[str] = mapped_column(String(64)); created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utc_now, server_default=func.now())
+
+
+class DecisionHumanEvidence(Base):
+    __tablename__ = "decision_human_evidence"
+    __table_args__ = (UniqueConstraint("approval_decision_id", name="uq_decision_human_approval"),)
+    human_evidence_id: Mapped[str] = mapped_column(String(36), primary_key=True); provenance_id: Mapped[str] = mapped_column(String(36), ForeignKey("decision_provenance.provenance_id", ondelete="RESTRICT")); approval_decision_id: Mapped[str] = mapped_column(String(36), ForeignKey("approval_decisions.decision_id", ondelete="RESTRICT")); decision: Mapped[str] = mapped_column(String(16)); decided_by: Mapped[str] = mapped_column(String(255)); comment: Mapped[str] = mapped_column(Text); decided_at: Mapped[datetime] = mapped_column(UTCDateTime()); evidence_hash: Mapped[str] = mapped_column(String(64)); created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utc_now, server_default=func.now())

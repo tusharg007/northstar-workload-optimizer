@@ -1,6 +1,6 @@
 # North Star Current Architecture Baseline
 
-Status: **CURRENT IMPLEMENTED** after Gate 4A verification on 2026-08-13.
+Status: **CURRENT IMPLEMENTED** after Gate 4B verification on 2026-08-13.
 
 This document records the system that exists today. It is not the target v2
 architecture. Items under **PLANNED FOR V2** are boundaries only; the detailed
@@ -18,6 +18,7 @@ flowchart LR
     Domain["AutomationPipeline\ndeterministic validation, anomaly scoring, routing"]
     Repository["SQLAlchemy repositories\ntransaction + idempotency boundary"]
     Context["Governed Context Registry\nversioned policy, terms, trust, as-of resolution"]
+    Provenance["Decision Provenance\nimmutable policy, rule, trust, risk, and human evidence"]
     Runtime[("PostgreSQL target / SQLite fallback\noperational state")]
     ETL["ETL / analytics pipeline"]
     Analytics[("northstar.db\nanalytical data")]
@@ -32,7 +33,9 @@ flowchart LR
     API --> Domain
     API --> Repository
     API --> Context
+    API --> Provenance
     Context --> Runtime
+    Provenance --> Runtime
     Repository --> Runtime
     ETL --> Analytics
     Assets --> ETL
@@ -47,12 +50,17 @@ flowchart LR
 2. n8n normalizes the webhook body and posts it to
    `http://127.0.0.1:8000/api/expenses/process`.
 3. FastAPI validates the body as `ExpenseSubmission`.
-4. `AutomationPipeline.process_single()` performs deterministic validation,
-   anomaly detection, risk classification, approval routing, and notification
-   payload construction.
-5. The repository atomically writes the materialized expense, workflow run,
-   ordered events, and pending approval task when required.
-6. The internal n8n service workflow returns a normalized service envelope;
+4. FastAPI resolves all required governed context at one `context_as_of` and
+   binds structured policy parameters to the deterministic execution manifest.
+   Missing, conflicted, untrusted, or mismatched context safely abstains with
+   HTTP 409 before a financial decision is written.
+5. `AutomationPipeline.process_single()` performs deterministic validation,
+   anomaly detection, risk classification, approval routing, notification
+   payload construction, and structured rule/risk evaluations.
+6. The repository atomically writes the materialized expense, workflow run,
+   ordered events, pending approval task when required, and the complete
+   automated provenance aggregate.
+7. The internal n8n service workflow returns a normalized service envelope;
    the public workflow preserves FastAPI's body and status for expected results.
 
 The Python class is historically named `AutomationPipeline`, but its current
@@ -67,8 +75,9 @@ workflow orchestration and webhook lifecycle.
 3. The internal decision workflow privately resolves any registered Wait
    capability, then posts `{decision, approver, comment}` to FastAPI.
 4. FastAPI permits only `approve` or `reject`; one repository transaction writes
-   immutable decision history, task state, materialized expense state, and an
-   audit event. The status becomes `APPROVED` or `REJECTED`.
+   immutable decision history, immutable human provenance evidence, task state,
+   materialized expense state, and an audit event. The status becomes
+   `APPROVED` or `REJECTED`.
 5. Only after that commit, the public workflow signals an active n8n Wait. The
    resumed orchestrator fetches persisted truth, completes, and notifies.
 6. n8n returns the persisted FastAPI response to the caller. The capability URL
@@ -85,12 +94,16 @@ Application factory: `app.main:create_app`. Uvicorn entry point:
 | `POST /api/expenses/process` | `ExpenseSubmission`; optional `Idempotency-Key`, `X-Correlation-ID` headers | Persisted public expense state; `X-Correlation-ID` response header |
 | `GET /api/expenses` | Optional exact `status` query | Newest-first list of public expense states |
 | `GET /api/expenses/{expense_id}` | Path ID | Public expense state, or 404 |
-| `GET /api/expenses/{expense_id}/explanation` | Path ID | Deterministic risk/routing explanation, or 404 |
+| `GET /api/expenses/{expense_id}/explanation` | Path ID | Backwards-compatible deterministic explanation plus provenance ID/hash/verification, or 404 |
 | `POST /api/expenses/{expense_id}/decision` | `DecisionRequest` | Updated public expense state, or 404 |
 | `GET /api/context/policies...` | Optional UTC `as_of` | Policy identities, versions, effective resolution, rules, owner, and trust |
 | `GET /api/context/terms...` | Optional UTC `as_of` | Term identities, versioned definitions, owner, and trust |
 | `GET /api/context/owners/{owner_key}` | Path key | Accountable owner, or 404 |
 | `GET /api/context/expenses/{expense_id}` | Optional UTC `as_of` | Read-only policy/term context separated from risk-signal definitions |
+| `GET /api/provenance/expenses/{expense_id}` | Path ID | Complete immutable evidence aggregate, or 404 |
+| `GET /api/provenance/decisions/{provenance_id}` | Path ID | Complete immutable evidence aggregate, or 404 |
+| `GET /api/provenance/decisions/{provenance_id}/verify` | Path ID | Recomputed evidence and aggregate hash result |
+| `GET /api/provenance/expenses/{expense_id}/trace` | Path ID | End-to-end deterministic decision trace or explicit `LEGACY_UNAVAILABLE` |
 
 `ExpenseSubmission` requires `expense_id`, `employee_id`, `employee_name`,
 `department`, `transaction_date`, `merchant`, `category`, and a positive
@@ -115,8 +128,9 @@ processing statuses are `AUTO_APPROVED`, `PENDING_APPROVAL`, `ESCALATED`, and,
 when the domain pipeline is called directly with invalid data,
 `REJECTED_VALIDATION`.
 
-The explanation response contains `expense_id`, `status`, `risk_level`,
-`anomaly_flags`, `routing_decision`, `approver`, and `reason`.
+The explanation response retains `expense_id`, `status`, `risk_level`,
+`anomaly_flags`, `routing_decision`, `approver`, and `reason`, and adds
+`provenance_id`, `provenance_hash`, and `evidence_verified` when available.
 
 ## Operational persistence
 
@@ -140,6 +154,15 @@ Governed versions carry deterministic SHA-256 hashes, effective intervals,
 certification and review metadata, provenance, ownership, and deterministic
 trust aggregation. Gate 4A reads this context but does not alter or annotate
 expense decisions.
+
+Revision `20260813_0005` adds `decision_provenance` plus policy, business-term,
+rule, trust, risk-signal, and human-decision evidence tables. PostgreSQL uses
+JSONB for structured observations and parameters. The application exposes only
+append/read operations; relational references and compact immutable snapshots
+preserve both navigability and historical meaning. Automated provenance commits
+with expense processing, while human evidence commits with approval. The
+aggregate hash deliberately covers the automated decision; later human evidence
+has its own verified hash and does not rewrite the automated hash.
 
 Processing atomically persists the materialized expense, one workflow run,
 ordered audit events, and a pending approval task. Approval atomically persists
@@ -217,6 +240,11 @@ explicit DLQ replay, and Workflow 99 captures unexpected n8n failures. See
 `G3B_RELIABILITY_OUTBOX.md` for crash-window, concurrency, replay, and error
 handler evidence.
 
+n8n 2.22.6 returns either HTTP 400 or 409 when an idempotent Wait resume is
+already running. The approval and dispatcher workflows accept those statuses
+only with the exact safe duplicate-resume message; other failures still enter
+the existing retry/dead-letter path.
+
 ## MCP status
 
 `mcp_server/server.py` uses the current `mcp.server.MCPServer` API and runs over
@@ -287,18 +315,23 @@ state, and exits nonzero with a clear service/HTTP/timeout error on failure.
 - The checkout remains nested one directory below the provided workspace root;
   it is now a local Git repository with a Gate 0 baseline commit and no remote.
 - Context changes currently use a trusted source-controlled seed; there is no
-  authoring UI, RBAC, certification workflow, or decision provenance yet.
+  authoring UI, RBAC, or interactive certification workflow. Provenance is
+  application-append-only rather than protected by database triggers or an
+  external transparency log.
 - Business-step ownership is obscured by the legacy `AutomationPipeline` name;
   the intended boundary is n8n orchestration versus Python deterministic domain
   logic.
 
 ## PLANNED FOR V2 (not implemented)
 
-Decision provenance, evaluations,
-Metabase, optional governed MCP and voice interfaces, Docker Compose, and CI
-remain later work. PostgreSQL persistence, durable HITL, transactional outbox,
-leases, DLQ/replay, reconciliation, and global n8n error handling are
-runtime-verified. The governed context registry, certified version history,
-as-of resolution, trust/freshness, and read-only context API are also verified.
+Evaluations, Metabase, optional governed MCP and voice interfaces, Docker
+Compose, and CI remain later work. PostgreSQL persistence, durable HITL,
+transactional outbox, leases, DLQ/replay, reconciliation, and global n8n error
+handling are runtime-verified. The governed context registry, certified version
+history, as-of resolution, trust/freshness, and read-only context API are also
+verified.
+Immutable decision provenance, safe policy/engine binding, structured rule/risk
+evidence, historical snapshots, hash verification, and human-decision linkage
+are runtime-verified as well. See `G4B_DECISION_PROVENANCE.md`.
 Production authentication, backups, monitoring, and release packaging remain
 later-gate concerns.

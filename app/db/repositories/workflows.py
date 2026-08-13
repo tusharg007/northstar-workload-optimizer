@@ -22,10 +22,13 @@ from app.db.models import (
     Expense,
     WorkflowEvent,
     WorkflowRun,
+    DecisionProvenance,
 )
 from app.db.repositories.approvals import ApprovalRepository
 from app.db.repositories.expenses import ExpenseRepository
 from app.db.repositories.reliability import OutboxRepository
+from app.db.repositories.provenance import ProvenanceRepository
+from app.provenance.service import build_automated_provenance
 from app.db.session import Database
 
 
@@ -83,6 +86,7 @@ class WorkflowRepository:
         idempotency_key: str | None = None,
         correlation_id: str | None = None,
         source_system: str = "api",
+        context_bundle: dict | None = None,
     ) -> ProcessOutcome:
         payload_hash = canonical_payload_hash(payload)
         key = idempotency_key or derived_idempotency_key(
@@ -102,6 +106,7 @@ class WorkflowRepository:
                 idempotency_key=key,
                 correlation_id=correlation,
                 source_system=source_system,
+                context_bundle=context_bundle,
             )
         except IntegrityError:
             replay = self._find_replay(key, payload["expense_id"], payload_hash)
@@ -159,8 +164,9 @@ class WorkflowRepository:
         idempotency_key: str,
         correlation_id: str,
         source_system: str,
+        context_bundle: dict | None,
     ) -> ProcessOutcome:
-        now = utc_now()
+        now = context_bundle["context_as_of"] if context_bundle else utc_now()
         anomaly = result.get("anomaly") or {}
         decision = result.get("decision") or {}
         with self.database.transaction() as session:
@@ -222,6 +228,15 @@ class WorkflowRepository:
                         updated_at=now,
                     )
                 )
+            if context_bundle:
+                bundle = build_automated_provenance(
+                    expense_id=expense.expense_id, payload_hash=payload_hash, workflow_run_id=run.id,
+                    correlation_id=correlation_id,
+                    context_as_of=context_bundle["context_as_of"],
+                    policies=context_bundle["policies"], terms=context_bundle["terms"],
+                    result=result,
+                )
+                ProvenanceRepository.persist_automated(session, bundle)
             session.flush()
             state = ExpenseRepository.to_state(expense)
         return ProcessOutcome(state, correlation_id, False)
@@ -307,8 +322,7 @@ class WorkflowRepository:
             if run is None:
                 raise RuntimeError("Approval task has no workflow run")
             status = "APPROVED" if decision == "approve" else "REJECTED"
-            session.add(
-                ApprovalDecision(
+            approval_decision = ApprovalDecision(
                     decision_id=str(uuid4()),
                     approval_task_id=task.task_id,
                     expense_id=expense_id,
@@ -318,7 +332,8 @@ class WorkflowRepository:
                     comment=comment,
                     decided_at=now,
                 )
-            )
+            session.add(approval_decision)
+            session.flush()
             task.status = status
             task.updated_at = now
             expense.status = status
@@ -361,6 +376,11 @@ class WorkflowRepository:
                 correlation_id=run.correlation_id,
                 now=now,
             )
+            provenance = session.scalar(
+                select(DecisionProvenance).where(DecisionProvenance.workflow_run_id == run.id)
+            )
+            if provenance is not None:
+                ProvenanceRepository.add_human_evidence(session, provenance.provenance_id, approval_decision)
             session.flush()
             return ExpenseRepository.to_state(expense)
 

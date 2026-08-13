@@ -51,6 +51,7 @@ class ContextRepository:
     @staticmethod
     def owner_state(owner: GovernanceOwner) -> dict:
         return {
+            "owner_id": owner.owner_id,
             "owner_key": owner.owner_key,
             "display_name": owner.display_name,
             "owner_type": owner.owner_type,
@@ -93,6 +94,7 @@ class ContextRepository:
     @classmethod
     def _policy_summary(cls, policy: PolicyDefinition, owner: GovernanceOwner, count: int) -> dict:
         return {
+            "policy_id": policy.policy_id,
             "policy_key": policy.policy_key,
             "policy_name": policy.policy_name,
             "domain": policy.domain,
@@ -128,6 +130,7 @@ class ContextRepository:
     @classmethod
     def _term_summary(cls, term: BusinessTerm, owner: GovernanceOwner, count: int) -> dict:
         return {
+            "business_term_id": term.term_id,
             "term_key": term.term_key,
             "canonical_name": term.canonical_name,
             "domain": term.domain,
@@ -220,6 +223,7 @@ class ContextRepository:
     @staticmethod
     def _rule_state(rule: PolicyRule, term_key: str | None) -> dict:
         return {
+            "policy_rule_id": rule.rule_id,
             "rule_key": rule.rule_key,
             "rule_name": rule.rule_name,
             "rule_type": rule.rule_type,
@@ -227,6 +231,7 @@ class ContextRepository:
             "parameters": rule.parameters,
             "severity": rule.severity,
             "business_term_key": term_key,
+            "business_term_id": rule.business_term_id,
             "source_reference": rule.source_reference,
         }
 
@@ -276,6 +281,7 @@ class ContextRepository:
         signals = session.scalars(statement.order_by(TrustSignal.signal_type)).all()
         return [
             {
+                "trust_signal_id": signal.trust_signal_id,
                 "signal_type": signal.signal_type,
                 "status": signal.status,
                 "score": signal.score,

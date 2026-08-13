@@ -16,6 +16,7 @@ from app.db.repositories.reliability import (
     OutboxRepository,
 )
 from app.db.repositories.context import ContextRepository
+from app.db.repositories.provenance import ProvenanceRepository
 
 __all__ = [
     "DecisionConflictError",

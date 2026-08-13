@@ -13,6 +13,7 @@ class ContextModel(BaseModel):
 
 
 class OwnerView(ContextModel):
+    owner_id: str
     owner_key: str
     display_name: str
     owner_type: str
@@ -22,6 +23,7 @@ class OwnerView(ContextModel):
 
 
 class TrustSignalView(ContextModel):
+    trust_signal_id: str
     signal_type: str
     status: str
     score: float | None
@@ -38,6 +40,7 @@ class TrustView(ContextModel):
 
 
 class PolicyRuleView(ContextModel):
+    policy_rule_id: str
     rule_key: str
     rule_name: str
     rule_type: str
@@ -45,10 +48,12 @@ class PolicyRuleView(ContextModel):
     parameters: dict[str, Any]
     severity: str
     business_term_key: str | None
+    business_term_id: str | None
     source_reference: str | None
 
 
 class PolicySummary(ContextModel):
+    policy_id: str
     policy_key: str
     policy_name: str
     domain: str
@@ -72,6 +77,7 @@ class PolicyVersionView(ContextModel):
 
 
 class ResolvedPolicy(ContextModel):
+    policy_id: str
     policy_key: str
     policy_name: str
     domain: str
@@ -93,6 +99,7 @@ class ResolvedPolicy(ContextModel):
 
 
 class TermSummary(ContextModel):
+    business_term_id: str
     term_key: str
     canonical_name: str
     domain: str
@@ -114,6 +121,7 @@ class TermVersionView(ContextModel):
 
 
 class ResolvedTerm(ContextModel):
+    business_term_id: str
     term_key: str
     canonical_name: str
     domain: str

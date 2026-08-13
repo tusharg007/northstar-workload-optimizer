@@ -14,7 +14,24 @@ import pytest
 from sqlalchemy import delete, func, select
 
 from app.db.base import utc_now
-from app.db.models import ApprovalDecision, ApprovalNotification, ApprovalTask, Expense, OutboxDeliveryAttempt, OutboxEvent, WorkflowEvent, WorkflowFailure, WorkflowRun
+from app.db.models import (
+    ApprovalDecision,
+    ApprovalNotification,
+    ApprovalTask,
+    DecisionHumanEvidence,
+    DecisionPolicyEvidence,
+    DecisionProvenance,
+    DecisionRiskEvidence,
+    DecisionRuleEvidence,
+    DecisionTermEvidence,
+    DecisionTrustEvidence,
+    Expense,
+    OutboxDeliveryAttempt,
+    OutboxEvent,
+    WorkflowEvent,
+    WorkflowFailure,
+    WorkflowRun,
+)
 from app.main import create_app
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
@@ -168,6 +185,13 @@ def test_postgres_skip_locked_divides_events_between_workers(monkeypatch) -> Non
         session.execute(delete(WorkflowFailure))
         session.execute(delete(OutboxDeliveryAttempt))
         session.execute(delete(OutboxEvent))
+        session.execute(delete(DecisionHumanEvidence))
+        session.execute(delete(DecisionRiskEvidence))
+        session.execute(delete(DecisionRuleEvidence))
+        session.execute(delete(DecisionTrustEvidence))
+        session.execute(delete(DecisionTermEvidence))
+        session.execute(delete(DecisionPolicyEvidence))
+        session.execute(delete(DecisionProvenance))
         session.execute(delete(ApprovalDecision))
         session.execute(delete(ApprovalNotification))
         session.execute(delete(ApprovalTask))

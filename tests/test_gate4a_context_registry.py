@@ -356,7 +356,27 @@ def test_postgres_context_schema_seed_and_resolution() -> None:
     application = create_app(POSTGRES_URL)
     database = application.state.store.database
     with database.transaction() as session:
-        from app.db.models import BusinessTerm, BusinessTermVersion
+        from app.db.models import (
+            BusinessTerm,
+            BusinessTermVersion,
+            DecisionHumanEvidence,
+            DecisionPolicyEvidence,
+            DecisionProvenance,
+            DecisionRiskEvidence,
+            DecisionRuleEvidence,
+            DecisionTermEvidence,
+            DecisionTrustEvidence,
+        )
+        # This test owns a clean governed-context fixture. Gate 4B evidence has
+        # RESTRICT foreign keys by design, so remove the aggregate before its
+        # referenced context rows.
+        session.query(DecisionHumanEvidence).delete()
+        session.query(DecisionRiskEvidence).delete()
+        session.query(DecisionRuleEvidence).delete()
+        session.query(DecisionTrustEvidence).delete()
+        session.query(DecisionTermEvidence).delete()
+        session.query(DecisionPolicyEvidence).delete()
+        session.query(DecisionProvenance).delete()
         session.query(TrustSignal).delete()
         session.query(PolicyRule).delete()
         session.query(PolicyVersion).delete()

@@ -52,8 +52,8 @@ def apply_seed(database: Database, seed: dict, *, write: bool = False) -> dict:
     for owner in seed["owners"]:
         if owner["owner_key"] in owner_keys:
             existing = repository.get_owner(owner["owner_key"])
-            expected = {key: owner.get(key) for key in existing}
-            if existing != expected:
+            expected = {key: owner.get(key) for key in existing if key != "owner_id"}
+            if {key: value for key, value in existing.items() if key != "owner_id"} != expected:
                 report["conflict"] += 1
                 raise SeedConflictError(f"Owner {owner['owner_key']} conflicts with existing identity")
             report["unchanged"] += 1

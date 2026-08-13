@@ -24,6 +24,8 @@ from app.db.repositories import (
 from app.db.session import DEFAULT_DATABASE_URL
 from app.runtime_store import RuntimeStore
 from app.context.exceptions import ContextConflictError, ContextNotFoundError
+from app.context.exceptions import ContextSafetyError
+from app.provenance.models import ProvenanceTraceView, ProvenanceVerificationView, ProvenanceView
 from app.context.models import (
     ExpenseContextView,
     OwnerView,
@@ -205,6 +207,15 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
             )
         except (IdempotencyConflictError, ExpenseConflictError) as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except ContextSafetyError as exc:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": exc.code, "reason_code": exc.reason_code,
+                    "reason": exc.safe_reason, "correlation_id": exc.correlation_id,
+                },
+                headers={"X-Correlation-ID": exc.correlation_id},
+            ) from exc
         response.headers["X-Correlation-ID"] = outcome.correlation_id
         return _public_state(outcome.state)
 
@@ -214,6 +225,7 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
         if state is None:
             raise HTTPException(status_code=404, detail="Expense not found")
         result = state["result"]
+        provenance = store.provenance.by_expense(expense_id)
         anomaly = result.get("anomaly") or {}
         routing = result.get("decision") or {}
         return {
@@ -225,7 +237,41 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
             "approver": state.get("decided_by") or state.get("approver_role"),
             "reason": routing.get("reason")
             or "Expense did not reach routing because validation failed.",
+            "provenance_id": provenance["provenance_id"] if provenance else None,
+            "provenance_hash": provenance["provenance_hash"] if provenance else None,
+            "evidence_verified": (
+                store.provenance.verify(provenance["provenance_id"])["status"] == "PASS"
+                if provenance else None
+            ),
         }
+
+    @application.get("/api/provenance/expenses/{expense_id}", response_model=ProvenanceView)
+    def get_expense_provenance(expense_id: str) -> dict:
+        provenance = store.provenance.by_expense(expense_id)
+        if provenance is None:
+            raise HTTPException(status_code=404, detail="Decision provenance not found")
+        return provenance
+
+    @application.get("/api/provenance/decisions/{provenance_id}", response_model=ProvenanceView)
+    def get_decision_provenance(provenance_id: str) -> dict:
+        provenance = store.provenance.by_id(provenance_id)
+        if provenance is None:
+            raise HTTPException(status_code=404, detail="Decision provenance not found")
+        return provenance
+
+    @application.get("/api/provenance/decisions/{provenance_id}/verify", response_model=ProvenanceVerificationView)
+    def verify_decision_provenance(provenance_id: str) -> dict:
+        try:
+            return store.provenance.verify(provenance_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="Decision provenance not found") from exc
+
+    @application.get("/api/provenance/expenses/{expense_id}/trace", response_model=ProvenanceTraceView)
+    def get_expense_trace(expense_id: str) -> dict:
+        try:
+            return store.provenance.trace(expense_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="Expense not found") from exc
 
     @application.get("/api/expenses/{expense_id}")
     def get_expense(expense_id: str) -> dict:

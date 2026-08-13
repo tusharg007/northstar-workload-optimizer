@@ -210,6 +210,7 @@ def test_gate3a_wait_schedule_and_resume_security_contracts() -> None:
 def test_gate3b_dispatcher_replay_and_notification_idempotency_contracts() -> None:
     workflows = _workflows()
     dispatcher = _serialized("23_reliability_dispatcher.json")
+    approval = _serialized("02_approval_decision.json")
     replay = workflows["24_dead_letter_replay.json"]
     notification = _serialized("21_approval_notification_service.json")
     assert "/api/internal/reliability/reconcile" in dispatcher
@@ -218,6 +219,9 @@ def test_gate3b_dispatcher_replay_and_notification_idempotency_contracts() -> No
     assert all(node["type"] != "n8n-nodes-base.webhook" for node in replay["nodes"])
     assert "Idempotency-Key" in notification
     assert "northstar:notification:" in notification
+    # n8n 2.22.6 may return either status for an idempotent duplicate Wait resume.
+    assert "[400, 409].includes" in approval
+    assert "[400, 409].includes" in dispatcher
 
 
 @pytest.mark.skipif(

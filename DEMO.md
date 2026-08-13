@@ -32,17 +32,20 @@ $env:NORTHSTAR_DATABASE_URL="sqlite:///data/northstar_runtime.db"
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000
 ```
 
-The SQLAlchemy operational schema is created automatically for the SQLite
-fallback at `data/northstar_runtime.db` and is never deleted on startup. Existing
+The SQLAlchemy operational schema and source-controlled governed context are
+created automatically for the SQLite development fallback at
+`data/northstar_runtime.db` and are never deleted on startup. Existing
 Gate 0 `runtime_expenses` rows are copied once into the new tables while the
-legacy source table remains intact. PostgreSQL deployments should run Alembic
-before starting FastAPI.
+legacy source table remains intact. PostgreSQL deployments must run Alembic and
+explicitly provision governed context before starting FastAPI; ordinary request
+handling never seeds or mutates certified policy context.
 
 To use local PostgreSQL instead:
 
 ```powershell
 $env:NORTHSTAR_DATABASE_URL="postgresql+psycopg://northstar:northstar@localhost:5432/northstar"
 .\.venv\Scripts\python.exe -m alembic upgrade head
+.\.venv\Scripts\python.exe scripts\seed_context_registry.py --write
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000
 ```
 

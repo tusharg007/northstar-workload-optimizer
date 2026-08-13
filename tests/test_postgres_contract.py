@@ -24,7 +24,11 @@ from app.db.models import (
     Expense,
     WorkflowEvent,
     WorkflowRun,
+    DecisionProvenance,
+    DecisionRiskEvidence,
 )
+from app.context.seed import apply_seed, load_seed
+from app.db.session import Database
 from app.main import create_app
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
@@ -57,6 +61,7 @@ def postgres_schema() -> None:
     config = Config(str(PROJECT_DIR / "alembic.ini"))
     os.environ["NORTHSTAR_DATABASE_URL"] = POSTGRES_URL
     command.upgrade(config, "head")
+    apply_seed(Database(POSTGRES_URL), load_seed(PROJECT_DIR / "context" / "registry.seed.json"), write=True)
     yield
 
 
@@ -83,6 +88,8 @@ def _counts() -> dict[str, int]:
                 UNION ALL SELECT 'workflow_events', count(*) FROM workflow_events
                 UNION ALL SELECT 'approval_tasks', count(*) FROM approval_tasks
                 UNION ALL SELECT 'approval_decisions', count(*) FROM approval_decisions
+                UNION ALL SELECT 'decision_provenance', count(*) FROM decision_provenance
+                UNION ALL SELECT 'decision_risk_evidence', count(*) FROM decision_risk_evidence
                 """
             ).fetchall()
         )
@@ -172,6 +179,8 @@ def test_postgres_derived_idempotency_and_decision_metadata_survive_replay() -> 
     assert counts["expenses"] == 1
     assert counts["workflow_runs"] == 1
     assert counts["approval_tasks"] == 1
+    assert counts["decision_provenance"] == 1
+    assert counts["decision_risk_evidence"] == 6
     assert counts["approval_decisions"] == 1
 
 
@@ -227,6 +236,8 @@ def test_postgres_concurrent_identical_submit_and_changed_payload_conflict() -> 
     assert counts["expenses"] == 1
     assert counts["workflow_runs"] == 1
     assert counts["approval_tasks"] == 1
+    assert counts["decision_provenance"] == 1
+    assert counts["decision_risk_evidence"] == 6
 
     changed = {**payload, "amount": payload["amount"] + 1}
     with TestClient(create_app(POSTGRES_URL)) as client:
@@ -263,6 +274,9 @@ def test_postgres_concurrent_identical_approvals_are_safe() -> None:
     with psycopg.connect(_psycopg_url()) as connection:
         assert connection.execute(
             "SELECT count(*) FROM approval_decisions"
+        ).fetchone()[0] == 1
+        assert connection.execute(
+            "SELECT count(*) FROM decision_human_evidence"
         ).fetchone()[0] == 1
         assert connection.execute(
             "SELECT status FROM approval_tasks"
@@ -341,6 +355,8 @@ def test_postgres_processing_and_approval_rollbacks_leave_no_partial_state(
         "workflow_events": 0,
         "approval_tasks": 0,
         "approval_decisions": 0,
+        "decision_provenance": 0,
+        "decision_risk_evidence": 0,
     }
 
     monkeypatch.undo()
