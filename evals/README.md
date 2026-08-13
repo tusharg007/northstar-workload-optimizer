@@ -60,3 +60,24 @@ the source-controlled workflow and production retry defaults remain unchanged.
 
 See `docs/architecture/G5_EVALUATION_HARNESS.md` for formulas, completeness,
 release evidence, and limitations.
+
+## Separate Gate 7 MCP interface benchmark
+
+Gate 7 does not modify `datasets/v1/` or `baselines/v1.json`. Its small,
+deterministic MCP contract dataset lives in `datasets/mcp_v1/` and uses the
+official MCP client without an LLM judge.
+
+```powershell
+# Disposable SQLite plus direct in-memory MCP client.
+.\.venv\Scripts\python.exe scripts\run_mcp_evals.py --profile fast
+
+# Real stdio MCP subprocess against configured live FastAPI and n8n services.
+.\.venv\Scripts\python.exe scripts\run_mcp_evals.py --profile stdio
+```
+
+The interface metrics are `tool_contract_accuracy`,
+`resource_contract_accuracy`, `trace_fidelity`, `error_contract_accuracy`,
+`write_path_integrity`, `sensitive_data_leak_rate`, and
+`bounded_output_compliance`. Accuracy/compliance thresholds are 1.0; sensitive
+data leak rate must be 0.0. The benchmark includes a deliberate forbidden-data
+negative control without committing an unsafe fixture.

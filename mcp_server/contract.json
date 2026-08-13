@@ -1,0 +1,32 @@
+{
+  "contract_version": 1,
+  "server": {
+    "name": "north-star-governed-context",
+    "title": "North Star Governed Context Server",
+    "version": "1.0.0",
+    "mcp_sdk": "2.0.0"
+  },
+  "tools": [
+    {"name":"submit_expense","classification":"ORCHESTRATION_BRIDGE","read_only":false,"consequential":true},
+    {"name":"get_expense_status","classification":"READ","read_only":true,"consequential":false},
+    {"name":"list_pending_approvals","classification":"READ","read_only":true,"consequential":false},
+    {"name":"explain_risk","classification":"READ","read_only":true,"consequential":false},
+    {"name":"approve_expense","classification":"WRITE_PRIVILEGED","read_only":false,"consequential":true},
+    {"name":"search_policy_context","classification":"READ","read_only":true,"consequential":false},
+    {"name":"get_policy_version","classification":"READ","read_only":true,"consequential":false},
+    {"name":"get_business_term","classification":"READ","read_only":true,"consequential":false},
+    {"name":"get_expense_context","classification":"READ","read_only":true,"consequential":false},
+    {"name":"get_decision_trace","classification":"READ","read_only":true,"consequential":false},
+    {"name":"get_expense_lineage","classification":"READ","read_only":true,"consequential":false},
+    {"name":"verify_decision_provenance","classification":"READ","read_only":true,"consequential":false}
+  ],
+  "resource_templates": [
+    "northstar://policies/{policy_key}",
+    "northstar://terms/{term_key}",
+    "northstar://expenses/{expense_id}/context",
+    "northstar://expenses/{expense_id}/trace",
+    "northstar://expenses/{expense_id}/lineage"
+  ],
+  "prompts": ["investigate_expense"],
+  "transports": ["stdio", "streamable-http-localhost"]
+}

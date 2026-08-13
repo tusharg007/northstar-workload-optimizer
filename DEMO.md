@@ -109,7 +109,7 @@ http://host.docker.internal:8000
 Also change the notification sink URL to a host/container-reachable address.
 The workflow files contain no credential-dependent, database, or Code nodes.
 
-## 5. Configure MCP (Terminal 4)
+## 5. Configure Governed MCP (Terminal 4)
 
 ```powershell
 $env:NORTHSTAR_API_BASE_URL="http://127.0.0.1:8000"
@@ -127,8 +127,30 @@ stdio server, the equivalent direct command is:
 .\.venv\Scripts\python.exe -m mcp_server.server
 ```
 
-The MCP tools are `submit_expense`, `get_expense_status`,
-`list_pending_approvals`, `explain_risk`, and `approve_expense`.
+Local Streamable HTTP is also supported and rejects non-loopback hosts:
+
+```powershell
+.\.venv\Scripts\python.exe -m mcp_server.server --transport streamable-http --host 127.0.0.1 --port 8765
+```
+
+The original five tools remain: `submit_expense`, `get_expense_status`,
+`list_pending_approvals`, `explain_risk`, and `approve_expense`. Gate 7 adds
+`search_policy_context`, `get_policy_version`, `get_business_term`,
+`get_expense_context`, `get_decision_trace`, `get_expense_lineage`, and
+`verify_decision_provenance`. Five read-only `northstar://...` resource
+templates and the optional `investigate_expense` prompt are discoverable.
+
+Stdio assumes a trusted local operator. `approve_expense` is a consequential
+privileged action that still traverses n8n, the immutable FastAPI approval
+transaction, human evidence, the outbox, and Wait/resume. Do not expose the
+local HTTP mode to an untrusted network without a real authorization layer.
+
+Validate the contract and run the deterministic in-memory benchmark:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\validate_mcp_server.py
+.\.venv\Scripts\python.exe scripts\run_mcp_evals.py --profile fast
+```
 
 ## Manual Verification Commands
 

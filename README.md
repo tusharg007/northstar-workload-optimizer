@@ -196,6 +196,11 @@ the existing analytics assets:
   source-controlled operator dashboards over nine sanitized PostgreSQL views.
   A dedicated principal can select only those views; Metabase is outside the
   FastAPI and n8n write path.
+- The **North Star Governed Context MCP Server** exposes 12 typed tools, five
+  read-only resource templates, and one optional investigation prompt using the
+  official MCP Python SDK 2.0.0. Reads expose minimized governed facts;
+  consequential writes retain the public n8n/FastAPI/HITL path. Stdio is the
+  default transport and Streamable HTTP is restricted to localhost demos.
 
 See [DEMO.md](DEMO.md) for the shortest Windows setup, import steps, commands,
 and five-minute interview sequence. Gate 3A design and runtime proof are in
@@ -210,3 +215,6 @@ Gate 5 commands and verified benchmark evidence are in
 Gate 6 setup, security boundaries, dashboard inventory, and verification are in
 [metabase/README.md](metabase/README.md) and
 [docs/architecture/G6_METABASE_OBSERVABILITY.md](docs/architecture/G6_METABASE_OBSERVABILITY.md).
+Gate 7 contracts, security boundaries, transports, and deterministic MCP
+benchmark evidence are in
+[docs/architecture/G7_GOVERNED_MCP_PROVIDER.md](docs/architecture/G7_GOVERNED_MCP_PROVIDER.md).

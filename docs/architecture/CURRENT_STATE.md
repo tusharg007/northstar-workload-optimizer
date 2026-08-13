@@ -1,6 +1,6 @@
 # North Star Current Architecture Baseline
 
-Status: **CURRENT IMPLEMENTED** after Gate 6 verification on 2026-08-13.
+Status: **CURRENT IMPLEMENTED** after Gate 7 verification on 2026-08-13.
 
 This document records the system that exists today. It is not the target v2
 architecture. Items under **PLANNED FOR V2** are boundaries only; the detailed
@@ -18,12 +18,20 @@ the restricted `northstar_metabase_ro` principal. Metabase has a separate
 application database and is not in the FastAPI/n8n write path. See
 `G6_METABASE_OBSERVABILITY.md`.
 
+Gate 7 adds a professional governed MCP v2 provider with 12 typed tools, five
+resource templates, one optional user-controlled prompt, deterministic
+interface evaluation, real stdio support, and localhost-only Streamable HTTP.
+MCP remains an interface over FastAPI and the public n8n control plane; it owns
+no policy, risk, persistence, or orchestration logic. The in-memory benchmark
+passed 17/17 and the PostgreSQL+n8n stdio benchmark passed 16/16. See
+`G7_GOVERNED_MCP_PROVIDER.md`.
+
 ## Component diagram
 
 ```mermaid
 flowchart LR
     Client["Client or MCP Inspector"]
-    MCP["Python MCP server\nstdio, optional demo interface"]
+    MCP["Governed MCP v2 provider\nstdio + localhost Streamable HTTP"]
     N8N["n8n on :5678\norchestration, Wait/resume, SLA, outbox dispatch"]
     Notify["HTTP notification adapter\nlocal sink on :9010"]
     API["FastAPI on :8000\nHTTP boundary"]
@@ -107,6 +115,7 @@ Application factory: `app.main:create_app`. Uvicorn entry point:
 | `GET /api/expenses` | Optional exact `status` query | Newest-first list of public expense states |
 | `GET /api/expenses/{expense_id}` | Path ID | Public expense state, or 404 |
 | `GET /api/expenses/{expense_id}/explanation` | Path ID | Backwards-compatible deterministic explanation plus provenance ID/hash/verification, or 404 |
+| `GET /api/expenses/{expense_id}/lineage` | Path ID | Persisted workflow, provenance, approval, and outbox event sequence, or 404 |
 | `POST /api/expenses/{expense_id}/decision` | `DecisionRequest` | Updated public expense state, or 404 |
 | `GET /api/context/policies...` | Optional UTC `as_of` | Policy identities, versions, effective resolution, rules, owner, and trust |
 | `GET /api/context/terms...` | Optional UTC `as_of` | Term identities, versioned definitions, owner, and trust |

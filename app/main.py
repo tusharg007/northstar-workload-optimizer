@@ -25,7 +25,7 @@ from app.db.session import DEFAULT_DATABASE_URL
 from app.runtime_store import RuntimeStore
 from app.context.exceptions import ContextConflictError, ContextNotFoundError
 from app.context.exceptions import ContextSafetyError
-from app.provenance.models import ProvenanceTraceView, ProvenanceVerificationView, ProvenanceView
+from app.provenance.models import ExpenseLineageView, ProvenanceTraceView, ProvenanceVerificationView, ProvenanceView
 from app.context.models import (
     ExpenseContextView,
     OwnerView,
@@ -272,6 +272,13 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
             return store.provenance.trace(expense_id)
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="Expense not found") from exc
+
+    @application.get("/api/expenses/{expense_id}/lineage", response_model=ExpenseLineageView)
+    def get_expense_lineage(expense_id: str) -> dict:
+        try:
+            return store.provenance.lineage(expense_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc).strip("'")) from exc
 
     @application.get("/api/expenses/{expense_id}")
     def get_expense(expense_id: str) -> dict:

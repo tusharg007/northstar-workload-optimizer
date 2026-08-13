@@ -1,0 +1,33 @@
+{
+  "dataset": "northstar-governed-mcp",
+  "version": "1.0.0",
+  "judge": "deterministic",
+  "cases": [
+    {"id":"tool_discovery","metric":"tool_contract_accuracy"},
+    {"id":"policy_lookup","metric":"tool_contract_accuracy"},
+    {"id":"historical_policy_lookup","metric":"tool_contract_accuracy"},
+    {"id":"business_term_lookup","metric":"tool_contract_accuracy"},
+    {"id":"search_ranking","metric":"tool_contract_accuracy"},
+    {"id":"submit_expense","metric":"write_path_integrity"},
+    {"id":"submit_idempotency","metric":"write_path_integrity"},
+    {"id":"expense_context","metric":"tool_contract_accuracy"},
+    {"id":"approve_expense","metric":"write_path_integrity"},
+    {"id":"decision_trace","metric":"trace_fidelity"},
+    {"id":"expense_lineage","metric":"trace_fidelity"},
+    {"id":"provenance_verification","metric":"trace_fidelity"},
+    {"id":"resource_consistency","metric":"resource_contract_accuracy"},
+    {"id":"bounded_output","metric":"bounded_output_compliance"},
+    {"id":"error_contracts","metric":"error_contract_accuracy"},
+    {"id":"context_abstention","metric":"error_contract_accuracy","profiles":["fast"]},
+    {"id":"sensitive_data_scan","metric":"sensitive_data_leak_rate","inverse":true}
+  ],
+  "thresholds": {
+    "tool_contract_accuracy": 1.0,
+    "resource_contract_accuracy": 1.0,
+    "trace_fidelity": 1.0,
+    "error_contract_accuracy": 1.0,
+    "write_path_integrity": 1.0,
+    "sensitive_data_leak_rate": 0.0,
+    "bounded_output_compliance": 1.0
+  }
+}

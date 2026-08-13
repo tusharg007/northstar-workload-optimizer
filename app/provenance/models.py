@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict
@@ -34,3 +35,18 @@ class ProvenanceVerificationView(BaseModel):
     stored_hash: str
     recomputed_hash: str
     failures: list[str]
+
+
+class LineageEventView(BaseModel):
+    source: str
+    event_type: str
+    timestamp: datetime
+    status: str | None = None
+    sequence: int | None = None
+
+
+class ExpenseLineageView(BaseModel):
+    expense_id: str
+    correlation_id: str
+    workflow_run_id: str
+    events: list[LineageEventView]

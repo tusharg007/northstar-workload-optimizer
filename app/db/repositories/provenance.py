@@ -11,7 +11,8 @@ from app.db.base import utc_now
 from app.db.models import (
     ApprovalDecision, ApprovalTask, DecisionHumanEvidence, DecisionPolicyEvidence,
     DecisionProvenance, DecisionRiskEvidence, DecisionRuleEvidence,
-    DecisionTermEvidence, DecisionTrustEvidence, Expense, WorkflowRun,
+    DecisionTermEvidence, DecisionTrustEvidence, Expense, OutboxEvent,
+    WorkflowEvent, WorkflowRun,
 )
 from app.db.session import Database
 from app.provenance.hashing import evidence_hash, provenance_hash
@@ -107,6 +108,68 @@ class ProvenanceRepository:
                 "approval_task": _state(task) if task else None, "approval_decision": _state(decision) if decision else None,
                 "human_evidence": complete["human_decisions"], "final_status": expense.status,
                 "provenance_id": provenance.provenance_id, "provenance_hash": provenance.provenance_hash,
+            }
+
+    def lineage(self, expense_id: str) -> dict:
+        """Return a safe timeline composed only from persisted records."""
+        with self.database.session() as session:
+            expense = session.scalar(select(Expense).where(Expense.expense_id == expense_id))
+            if expense is None:
+                raise KeyError("Expense not found")
+            run = session.scalar(
+                select(WorkflowRun)
+                .where(WorkflowRun.expense_id == expense_id)
+                .order_by(WorkflowRun.created_at.desc())
+            )
+            if run is None:
+                raise KeyError("Workflow run not found")
+            events = [
+                {
+                    "source": "workflow",
+                    "event_type": item.event_type,
+                    "timestamp": item.created_at,
+                    "status": None,
+                    "sequence": item.sequence_number,
+                }
+                for item in session.scalars(
+                    select(WorkflowEvent)
+                    .where(WorkflowEvent.workflow_run_id == run.id)
+                    .order_by(WorkflowEvent.sequence_number)
+                ).all()
+            ]
+            provenance = session.scalar(
+                select(DecisionProvenance).where(DecisionProvenance.workflow_run_id == run.id)
+            )
+            if provenance is not None:
+                events.append({
+                    "source": "provenance", "event_type": "DECISION_PROVENANCE_RECORDED",
+                    "timestamp": provenance.created_at, "status": provenance.context_trust_state,
+                    "sequence": None,
+                })
+            decision = session.scalar(
+                select(ApprovalDecision).where(ApprovalDecision.workflow_run_id == run.id)
+            )
+            if decision is not None:
+                events.append({
+                    "source": "approval", "event_type": "HUMAN_DECISION_RECORDED",
+                    "timestamp": decision.decided_at, "status": decision.decision.upper(),
+                    "sequence": None,
+                })
+            for item in session.scalars(
+                select(OutboxEvent)
+                .where(OutboxEvent.correlation_id == run.correlation_id)
+                .order_by(OutboxEvent.created_at)
+            ).all():
+                events.append({
+                    "source": "outbox", "event_type": item.event_type,
+                    "timestamp": item.created_at, "status": item.status, "sequence": None,
+                })
+            events.sort(key=lambda item: (item["timestamp"], item["sequence"] or 0, item["event_type"]))
+            return {
+                "expense_id": expense_id,
+                "correlation_id": run.correlation_id,
+                "workflow_run_id": run.id,
+                "events": events,
             }
 
     def verify(self, provenance_id: str) -> dict:
