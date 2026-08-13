@@ -36,6 +36,8 @@ jobs:
           sed -i 's/change-me-metabase-admin-password/integration-metabase-admin/' .env
       - name: Start complete stack
         run: docker compose -p northstar-g9-ci up --build -d
+      - name: Wait for Metabase bootstrap
+        run: docker compose -p northstar-g9-ci wait metabase-bootstrap
       - name: Verify stack and smoke
         run: python scripts/verify_stack.py --project northstar-g9-ci --wait-seconds 600
       - name: MCP stdio integration
