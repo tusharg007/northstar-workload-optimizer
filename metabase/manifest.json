@@ -8,7 +8,7 @@
     {"key":"operations.risk","name":"Risk distribution","sql_file":"sql/operations_risk.sql","display":"bar"},
     {"key":"operations.volume","name":"Expense volume over time","sql_file":"sql/operations_volume.sql","display":"line"},
     {"key":"operations.processing","name":"Processing p50 / p95","sql_file":"sql/operations_processing.sql","display":"table"},
-    {"key":"operations.review_rate","name":"Human-review rate","sql_file":"sql/operations_review_rate.sql","display":"scalar"},
+    {"key":"operations.review_rate","name":"Human-review rate","sql_file":"sql/operations_review_rate.sql","display":"scalar","visualization_settings":{"column_settings":{"[\"name\",\"human_review_percent\"]":{"column_title":"Human-review rate","number_style":"percent","scale":0.01,"decimals":0}}}},
     {"key":"operations.attention","name":"Recent critical or escalated expenses","sql_file":"sql/operations_attention.sql","display":"table"},
     {"key":"operations.attention_counts","name":"Approval and failure backlog","sql_file":"sql/operations_attention_counts.sql","display":"table"},
 
@@ -32,17 +32,17 @@
     {"key":"context.policy_states","name":"Policy trust states","sql_file":"sql/context_policy_states.sql","display":"bar"},
     {"key":"context.policy_total","name":"Total governed policies","sql_file":"sql/context_policy_total.sql","display":"scalar"},
     {"key":"context.review","name":"Context requiring review","sql_file":"sql/context_review.sql","display":"scalar"},
-    {"key":"context.owners","name":"Policies by owner","sql_file":"sql/context_owners.sql","display":"bar"},
+    {"key":"context.owners","name":"Policies by owner","sql_file":"sql/context_owners.sql","display":"bar","visualization_settings":{"graph.dimensions":["owner_display_name"],"graph.metrics":["policy_count"],"column_settings":{"[\"name\",\"owner_display_name\"]":{"column_title":"Owner"},"[\"name\",\"owner_active\"]":{"column_title":"Owner Active"},"[\"name\",\"policy_count\"]":{"column_title":"Policies"}}}},
     {"key":"context.terms","name":"Business terms by trust state","sql_file":"sql/context_terms.sql","display":"bar"},
-    {"key":"context.expired","name":"Expired freshness evidence","sql_file":"sql/context_expired.sql","display":"table"},
-    {"key":"context.current","name":"Current policy version health","sql_file":"sql/context_current.sql","display":"table"},
+    {"key":"context.expired","name":"Expired freshness evidence","sql_file":"sql/context_expired.sql","display":"table","visualization_settings":{"column_settings":{"[\"name\",\"policy_freshness_expired\"]":{"column_title":"Expired Policy Freshness"},"[\"name\",\"term_freshness_expired\"]":{"column_title":"Expired Term Freshness"}}}},
+    {"key":"context.current","name":"Current policy version health","sql_file":"sql/context_current.sql","display":"table","visualization_settings":{"column_settings":{"[\"name\",\"policy_key\"]":{"column_title":"Policy Key"},"[\"name\",\"policy_name\"]":{"column_title":"Policy"},"[\"name\",\"version_number\"]":{"column_title":"Version"},"[\"name\",\"status\"]":{"column_title":"Status"},"[\"name\",\"owner_display_name\"]":{"column_title":"Owner"},"[\"name\",\"owner_active\"]":{"column_title":"Owner Active"},"[\"name\",\"effective_from\"]":{"column_title":"Effective From"},"[\"name\",\"effective_to\"]":{"column_title":"Effective To"},"[\"name\",\"review_due_at\"]":{"column_title":"Review Due"},"[\"name\",\"freshness_expires_at\"]":{"column_title":"Freshness Expires"},"[\"name\",\"trust_state\"]":{"column_title":"Trust State"}}}},
 
     {"key":"trace.decisions","name":"Decision count","sql_file":"sql/trace_decisions.sql","display":"scalar"},
     {"key":"trace.trust","name":"Decisions by context trust state","sql_file":"sql/trace_trust.sql","display":"bar"},
-    {"key":"trace.completeness","name":"Structural provenance completeness","sql_file":"sql/trace_completeness.sql","display":"table"},
+    {"key":"trace.completeness","name":"Structural provenance completeness","sql_file":"sql/trace_completeness.sql","display":"table","visualization_settings":{"column_settings":{"[\"name\",\"structurally_complete\"]":{"column_title":"Structurally Complete"},"[\"name\",\"total_decisions\"]":{"column_title":"Total Decisions"},"[\"name\",\"completeness_percent\"]":{"column_title":"Completeness %"}}}},
     {"key":"trace.triggered","name":"Triggered risk signals","sql_file":"sql/trace_triggered.sql","display":"scalar"},
-    {"key":"trace.signals","name":"Risk-signal frequency","sql_file":"sql/trace_signals.sql","display":"bar"},
-    {"key":"trace.recent","name":"Recent decision evidence","sql_file":"sql/trace_recent.sql","display":"table"}
+    {"key":"trace.signals","name":"Risk-signal frequency","sql_file":"sql/trace_signals.sql","display":"row","visualization_settings":{"graph.dimensions":["canonical_name"],"graph.metrics":["triggered_count"],"column_settings":{"[\"name\",\"signal_key\"]":{"column_title":"Signal Key"},"[\"name\",\"canonical_name\"]":{"column_title":"Risk Signal"},"[\"name\",\"triggered_count\"]":{"column_title":"Triggered"},"[\"name\",\"evaluated_count\"]":{"column_title":"Evaluated"},"[\"name\",\"triggered_percent\"]":{"column_title":"Triggered %"}}}},
+    {"key":"trace.recent","name":"Recent decision evidence","sql_file":"sql/trace_recent.sql","display":"table","visualization_settings":{"column_settings":{"[\"name\",\"expense_id\"]":{"column_title":"Expense"},"[\"name\",\"correlation_id\"]":{"column_title":"Correlation ID"},"[\"name\",\"automated_status\"]":{"column_title":"Automated Status"},"[\"name\",\"risk_level\"]":{"column_title":"Risk"},"[\"name\",\"context_trust_state\"]":{"column_title":"Context Trust"},"[\"name\",\"policy_evidence_count\"]":{"column_title":"Policy Evidence"},"[\"name\",\"rule_evidence_count\"]":{"column_title":"Rule Evidence"},"[\"name\",\"trust_evidence_count\"]":{"column_title":"Trust Evidence"},"[\"name\",\"risk_evidence_count\"]":{"column_title":"Risk Evidence"},"[\"name\",\"human_evidence_count\"]":{"column_title":"Human Evidence"},"[\"name\",\"structurally_complete\"]":{"column_title":"Structurally Complete"},"[\"name\",\"created_at\"]":{"column_title":"Created At"}}}}
   ],
   "dashboards": [
     {"key":"operations","name":"North Star | Operations Overview","description":"Expense-processing health, throughput, risk, and current attention queues.","cards":[

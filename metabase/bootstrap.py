@@ -102,7 +102,8 @@ def ensure_questions(client: MetabaseClient, manifest: dict, database_id: int, c
         query = (ROOT / spec["sql_file"]).read_text(encoding="utf-8").strip()
         payload = {
             "name": spec["name"], "description": _description(spec["key"], spec.get("description", "")),
-            "collection_id": collection_id, "display": spec["display"], "visualization_settings": {},
+            "collection_id": collection_id, "display": spec["display"],
+            "visualization_settings": spec.get("visualization_settings", {}),
             "dataset_query": {"database": database_id, "type": "native", "native": {"query": query, "template-tags": {}}},
         }
         current = existing.get(spec["key"])

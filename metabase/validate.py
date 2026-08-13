@@ -15,7 +15,7 @@ EXPECTED_DASHBOARDS = {
     "North Star | Governed Context Health",
     "North Star | Decision Trace & Risk",
 }
-SUPPORTED_DISPLAYS = {"scalar", "bar", "line", "table"}
+SUPPORTED_DISPLAYS = {"scalar", "bar", "line", "row", "table"}
 MUTATION = re.compile(r"\b(INSERT|UPDATE|DELETE|MERGE|UPSERT|TRUNCATE|DROP|ALTER|CREATE|GRANT|REVOKE|CALL|COPY)\b", re.I)
 SECRET = re.compile(r"(session[_-]?token|api[_-]?key|authorization\s*:|password\s*[=:]\s*[^$<{])", re.I)
 
@@ -43,6 +43,9 @@ def validate() -> list[str]:
         display = question.get("display")
         if display not in SUPPORTED_DISPLAYS:
             errors.append(f"{question.get('key')}: unsupported display {display!r}")
+        settings = question.get("visualization_settings", {})
+        if not isinstance(settings, dict):
+            errors.append(f"{question.get('key')}: visualization_settings must be an object")
         sql_file = ROOT / str(question.get("sql_file", ""))
         declared_sql.add(sql_file.resolve())
         if not sql_file.is_file():
