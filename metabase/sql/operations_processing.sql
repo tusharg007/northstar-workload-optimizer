@@ -1,0 +1,1 @@
+SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY processing_duration_ms) AS p50_ms, PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY processing_duration_ms) AS p95_ms FROM observability.expense_operations WHERE processing_duration_ms IS NOT NULL;

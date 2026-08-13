@@ -1,0 +1,1 @@
+SELECT owner_display_name, owner_active, COUNT(*) AS policy_count FROM observability.context_policy_health WHERE is_latest_version GROUP BY owner_display_name, owner_active ORDER BY policy_count DESC;

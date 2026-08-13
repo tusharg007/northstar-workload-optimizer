@@ -1,0 +1,1 @@
+SELECT outbox_event_id, event_type, aggregate_type, aggregate_id, status, attempt_count, max_attempts, event_age_seconds, next_attempt_at, last_error_category FROM observability.reliability_outbox WHERE status NOT IN ('DELIVERED', 'DEAD_LETTER') ORDER BY created_at LIMIT 20;

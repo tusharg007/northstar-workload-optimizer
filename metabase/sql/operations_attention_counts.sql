@@ -1,0 +1,1 @@
+SELECT (SELECT COUNT(*) FROM observability.approval_sla WHERE status = 'PENDING') AS approval_backlog, (SELECT COUNT(*) FROM observability.workflow_failures WHERE status = 'OPEN') AS open_workflow_failures;

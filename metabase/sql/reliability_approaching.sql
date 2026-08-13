@@ -1,0 +1,1 @@
+SELECT outbox_event_id, event_type, status, attempt_count, max_attempts, event_age_seconds, last_error_category FROM observability.reliability_outbox WHERE approaching_max_attempts ORDER BY created_at LIMIT 20;

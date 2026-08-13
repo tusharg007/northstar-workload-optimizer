@@ -1,6 +1,6 @@
 # North Star Current Architecture Baseline
 
-Status: **CURRENT IMPLEMENTED** after Gate 5 verification on 2026-08-13.
+Status: **CURRENT IMPLEMENTED** after Gate 6 verification on 2026-08-13.
 
 This document records the system that exists today. It is not the target v2
 architecture. Items under **PLANNED FOR V2** are boundaries only; the detailed
@@ -11,6 +11,12 @@ deterministic benchmark now release-gates decisions, exact risk signals,
 routing, governed-context resolution and abstention, provenance, idempotency,
 and selected outbox recovery behavior. FAST and POSTGRES passed 37/37; the
 isolated n8n LIVE subset passed 11/11. See `G5_EVALUATION_HARNESS.md`.
+
+Gate 6 adds an optional, read-only observability plane. Nine sanitized
+PostgreSQL views feed exactly five source-controlled Metabase dashboards through
+the restricted `northstar_metabase_ro` principal. Metabase has a separate
+application database and is not in the FastAPI/n8n write path. See
+`G6_METABASE_OBSERVABILITY.md`.
 
 ## Component diagram
 
@@ -330,8 +336,8 @@ state, and exits nonzero with a clear service/HTTP/timeout error on failure.
 
 ## PLANNED FOR V2 (not implemented)
 
-Evaluations, Metabase, optional governed MCP and voice interfaces, Docker
-Compose, and CI remain later work. PostgreSQL persistence, durable HITL,
+Optional governed MCP and voice interfaces, full-project Docker Compose, and
+CI remain later work. PostgreSQL persistence, durable HITL,
 transactional outbox, leases, DLQ/replay, reconciliation, and global n8n error
 handling are runtime-verified. The governed context registry, certified version
 history, as-of resolution, trust/freshness, and read-only context API are also

@@ -1,0 +1,1 @@
+SELECT expense_id, correlation_id, automated_status, risk_level, context_trust_state, policy_evidence_count, rule_evidence_count, trust_evidence_count, risk_evidence_count, human_evidence_count, structurally_complete, created_at FROM observability.decision_provenance_quality ORDER BY created_at DESC LIMIT 20;

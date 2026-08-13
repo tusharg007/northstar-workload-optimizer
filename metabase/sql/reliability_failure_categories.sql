@@ -1,0 +1,1 @@
+SELECT COALESCE(failed_node, 'UNKNOWN') AS failed_node, COALESCE(error_class, 'UNKNOWN') AS error_class, SUM(occurrence_count) AS occurrences FROM observability.workflow_failures WHERE status = 'OPEN' GROUP BY failed_node, error_class ORDER BY occurrences DESC;

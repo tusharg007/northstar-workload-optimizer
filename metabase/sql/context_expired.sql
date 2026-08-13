@@ -1,0 +1,1 @@
+SELECT (SELECT COUNT(*) FROM observability.context_policy_health WHERE is_latest_version AND freshness_expired) AS policy_freshness_expired, (SELECT COUNT(*) FROM observability.context_term_health WHERE is_latest_version AND freshness_expired) AS term_freshness_expired;

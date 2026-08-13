@@ -168,6 +168,36 @@ and all workflows are active:
 It prints `NORTH STAR END-TO-END DEMO: PASS` only after the n8n intake,
 persistence, n8n approval, and final-state checks all succeed.
 
+## Optional Metabase Observability Demo
+
+This PostgreSQL-only view is independent of the operational demo above. In a
+new PowerShell window, use local-only credentials and the Docker CLI path that
+is installed with Docker Desktop:
+
+```powershell
+$docker="C:\Users\hp\AppData\Local\Programs\DockerDesktop\resources\bin\docker.exe"
+$env:NORTHSTAR_POSTGRES_ADMIN_PASSWORD="choose-a-local-admin-password"
+$env:NORTHSTAR_METABASE_DB_PASSWORD="choose-a-distinct-readonly-password"
+$env:METABASE_ADMIN_PASSWORD="choose-a-local-metabase-password"
+$env:NORTHSTAR_DATABASE_URL="postgresql+psycopg://northstar:$env:NORTHSTAR_POSTGRES_ADMIN_PASSWORD@localhost:55432/northstar"
+$env:METABASE_URL="http://localhost:3000"
+$env:NORTHSTAR_METABASE_DB_HOST="postgres"
+
+& $docker compose -p northstar-g6 -f infra\metabase\docker-compose.metabase.yml up -d postgres
+.\.venv\Scripts\python.exe -m alembic upgrade head
+.\.venv\Scripts\python.exe scripts\seed_context_registry.py --write
+.\.venv\Scripts\python.exe scripts\create_metabase_readonly_role.py
+.\.venv\Scripts\python.exe -m scripts.seed_observability_demo
+.\.venv\Scripts\python.exe -m metabase.prepare_artifact
+& $docker compose -p northstar-g6 -f infra\metabase\docker-compose.metabase.yml up -d metabase
+.\.venv\Scripts\python.exe -m metabase.bootstrap
+.\.venv\Scripts\python.exe -m metabase.live_validate
+```
+
+Open `http://localhost:3000` and show the five `North Star | ...` dashboards.
+The validator executes all 36 questions and independently checks headline
+results and read-only database permissions. Bootstrap is safe to rerun.
+
 ## 5-Minute Interview Demo
 
 1. Show the ten n8n workflows. Briefly point out stable-ID dispatch, the
@@ -190,7 +220,9 @@ persistence, n8n approval, and final-state checks all succeed.
    approver, comment, and timestamps.
 9. Show the execution completed and query the local sink for initial and
     completion notifications.
-10. Optionally run `.\.venv\Scripts\python.exe scripts\smoke_test.py` as a
+10. Optionally show the five read-only Metabase dashboards and the successful
+   `python -m metabase.live_validate` result.
+11. Optionally run `.\.venv\Scripts\python.exe scripts\smoke_test.py` as a
    single-command proof of the complete n8n-to-SQLite round trip.
 
 ## Troubleshooting
@@ -219,3 +251,6 @@ persistence, n8n approval, and final-state checks all succeed.
 - Automatic resume retry, global error handling, DLQ, and reconciliation are
   implemented through the Gate 3B transactional outbox. Provider-level
   exactly-once delivery is not claimed.
+- Metabase is PostgreSQL-only, read-only, and optional. The committed dashboard
+  version has no global filters; tested cross-card filters remain observability
+  debt.

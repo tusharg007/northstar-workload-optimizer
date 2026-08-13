@@ -1,0 +1,1 @@
+SELECT policy_key, policy_name, version_number, status, owner_display_name, owner_active, effective_from, effective_to, review_due_at, freshness_expires_at, trust_state FROM observability.context_policy_health WHERE is_latest_version ORDER BY policy_key;

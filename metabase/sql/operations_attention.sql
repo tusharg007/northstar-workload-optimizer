@@ -1,0 +1,1 @@
+SELECT expense_id, department, category, amount, currency, status, risk_level, approver_role, created_at FROM observability.expense_operations WHERE risk_level = 'CRITICAL' OR status = 'ESCALATED' ORDER BY created_at DESC LIMIT 20;

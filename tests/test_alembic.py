@@ -48,7 +48,7 @@ def test_alembic_upgrade_check_and_downgrade(
             "decision_human_evidence",
         }.issubset(inspect(engine).get_table_names())
         command.check(config)
-        command.downgrade(config, "-1")
+        command.downgrade(config, "20260813_0004")
         tables_at_gate4a = set(inspect(engine).get_table_names())
         assert "approval_notifications" in tables_at_gate4a
         assert "outbox_events" in tables_at_gate4a

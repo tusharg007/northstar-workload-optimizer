@@ -1,0 +1,25 @@
+CREATE VIEW observability.reliability_outbox AS
+SELECT
+    outbox_event_id,
+    event_type,
+    aggregate_type,
+    aggregate_id,
+    correlation_id,
+    status,
+    attempt_count,
+    max_attempts,
+    next_attempt_at,
+    lease_owner,
+    lease_acquired_at,
+    lease_expires_at,
+    replay_count,
+    last_error_category,
+    created_at,
+    delivered_at,
+    dead_lettered_at,
+    GREATEST(0, EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - created_at)))::bigint AS event_age_seconds,
+    (status = 'PENDING' AND attempt_count > 0) AS retry_pending,
+    (status = 'IN_FLIGHT' AND lease_expires_at IS NOT NULL AND lease_expires_at < CURRENT_TIMESTAMP) AS lease_expired,
+    (status = 'DEAD_LETTER') AS terminal_failure,
+    (status NOT IN ('DELIVERED', 'DEAD_LETTER') AND attempt_count >= GREATEST(max_attempts - 1, 0)) AS approaching_max_attempts
+FROM outbox_events;

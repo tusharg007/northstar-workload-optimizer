@@ -1,0 +1,1 @@
+SELECT task_id, expense_id, approver_role, risk_level, age_minutes, due_at, overdue, sla_stage, reminder_count, escalation_level FROM observability.approval_sla WHERE status = 'PENDING' ORDER BY created_at LIMIT 20;

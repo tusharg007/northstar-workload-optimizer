@@ -1,0 +1,1 @@
+SELECT COUNT(*) FILTER (WHERE structurally_complete) AS structurally_complete, COUNT(*) AS total_decisions, ROUND(100.0 * COUNT(*) FILTER (WHERE structurally_complete) / NULLIF(COUNT(*), 0), 2) AS completeness_percent FROM observability.decision_provenance_quality;

@@ -1,0 +1,1 @@
+SELECT signal_key, canonical_name, COUNT(*) FILTER (WHERE triggered) AS triggered_count, COUNT(*) AS evaluated_count, ROUND(100.0 * COUNT(*) FILTER (WHERE triggered) / NULLIF(COUNT(*), 0), 2) AS triggered_percent FROM observability.risk_signal_activity GROUP BY signal_key, canonical_name ORDER BY triggered_count DESC, signal_key;

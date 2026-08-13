@@ -52,3 +52,5 @@ test-*.db
 # Generated deterministic evaluation reports
 evals/reports/*
 !evals/reports/.gitkeep
+metabase/.runtime/
+.tmp/

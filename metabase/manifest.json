@@ -1,0 +1,71 @@
+{
+  "manifest_version": 1,
+  "metabase_version": "0.63.2.7",
+  "collection": {"key": "northstar", "name": "North Star", "description": "Read-only operational observability for North Star."},
+  "questions": [
+    {"key":"operations.total","name":"Total expenses","sql_file":"sql/operations_total.sql","display":"scalar"},
+    {"key":"operations.status","name":"Expenses by status","sql_file":"sql/operations_status.sql","display":"bar"},
+    {"key":"operations.risk","name":"Risk distribution","sql_file":"sql/operations_risk.sql","display":"bar"},
+    {"key":"operations.volume","name":"Expense volume over time","sql_file":"sql/operations_volume.sql","display":"line"},
+    {"key":"operations.processing","name":"Processing p50 / p95","sql_file":"sql/operations_processing.sql","display":"table"},
+    {"key":"operations.review_rate","name":"Human-review rate","sql_file":"sql/operations_review_rate.sql","display":"scalar"},
+    {"key":"operations.attention","name":"Recent critical or escalated expenses","sql_file":"sql/operations_attention.sql","display":"table"},
+    {"key":"operations.attention_counts","name":"Approval and failure backlog","sql_file":"sql/operations_attention_counts.sql","display":"table"},
+
+    {"key":"sla.pending","name":"Current pending approvals","sql_file":"sql/sla_pending.sql","display":"scalar"},
+    {"key":"sla.overdue","name":"Overdue approvals","sql_file":"sql/sla_overdue.sql","display":"scalar"},
+    {"key":"sla.role","name":"Pending by approver role","sql_file":"sql/sla_role.sql","display":"bar"},
+    {"key":"sla.risk","name":"Pending by risk level","sql_file":"sql/sla_risk.sql","display":"bar"},
+    {"key":"sla.stage","name":"SLA stage distribution","sql_file":"sql/sla_stage.sql","display":"bar"},
+    {"key":"sla.escalations","name":"Reminder and escalation counts","sql_file":"sql/sla_escalations.sql","display":"table"},
+    {"key":"sla.oldest","name":"Oldest pending approvals","sql_file":"sql/sla_oldest.sql","display":"table"},
+
+    {"key":"reliability.status","name":"Outbox status distribution","sql_file":"sql/reliability_status.sql","display":"bar"},
+    {"key":"reliability.pending","name":"Pending outbox events","sql_file":"sql/reliability_pending.sql","display":"scalar"},
+    {"key":"reliability.dead_letter","name":"Dead-letter events","sql_file":"sql/reliability_dead_letter.sql","display":"scalar"},
+    {"key":"reliability.attempts","name":"Delivery attempts over time","sql_file":"sql/reliability_attempts.sql","display":"line"},
+    {"key":"reliability.approaching","name":"Events approaching max attempts","sql_file":"sql/reliability_approaching.sql","display":"table"},
+    {"key":"reliability.failures","name":"Workflow failures by workflow","sql_file":"sql/reliability_failures.sql","display":"bar"},
+    {"key":"reliability.failure_categories","name":"Workflow failure nodes and categories","sql_file":"sql/reliability_failure_categories.sql","display":"bar"},
+    {"key":"reliability.oldest","name":"Oldest pending outbox events","sql_file":"sql/reliability_oldest.sql","display":"table"},
+
+    {"key":"context.policy_states","name":"Policy trust states","sql_file":"sql/context_policy_states.sql","display":"bar"},
+    {"key":"context.policy_total","name":"Total governed policies","sql_file":"sql/context_policy_total.sql","display":"scalar"},
+    {"key":"context.review","name":"Context requiring review","sql_file":"sql/context_review.sql","display":"scalar"},
+    {"key":"context.owners","name":"Policies by owner","sql_file":"sql/context_owners.sql","display":"bar"},
+    {"key":"context.terms","name":"Business terms by trust state","sql_file":"sql/context_terms.sql","display":"bar"},
+    {"key":"context.expired","name":"Expired freshness evidence","sql_file":"sql/context_expired.sql","display":"table"},
+    {"key":"context.current","name":"Current policy version health","sql_file":"sql/context_current.sql","display":"table"},
+
+    {"key":"trace.decisions","name":"Decision count","sql_file":"sql/trace_decisions.sql","display":"scalar"},
+    {"key":"trace.trust","name":"Decisions by context trust state","sql_file":"sql/trace_trust.sql","display":"bar"},
+    {"key":"trace.completeness","name":"Structural provenance completeness","sql_file":"sql/trace_completeness.sql","display":"table"},
+    {"key":"trace.triggered","name":"Triggered risk signals","sql_file":"sql/trace_triggered.sql","display":"scalar"},
+    {"key":"trace.signals","name":"Risk-signal frequency","sql_file":"sql/trace_signals.sql","display":"bar"},
+    {"key":"trace.recent","name":"Recent decision evidence","sql_file":"sql/trace_recent.sql","display":"table"}
+  ],
+  "dashboards": [
+    {"key":"operations","name":"North Star | Operations Overview","description":"Expense-processing health, throughput, risk, and current attention queues.","cards":[
+      {"question":"operations.total","row":0,"col":0,"width":6,"height":4},{"question":"operations.review_rate","row":0,"col":6,"width":6,"height":4},{"question":"operations.attention_counts","row":0,"col":12,"width":12,"height":4},
+      {"question":"operations.status","row":4,"col":0,"width":12,"height":8},{"question":"operations.risk","row":4,"col":12,"width":12,"height":8},
+      {"question":"operations.volume","row":12,"col":0,"width":12,"height":8},{"question":"operations.processing","row":12,"col":12,"width":12,"height":8},
+      {"question":"operations.attention","row":20,"col":0,"width":24,"height":10}]},
+    {"key":"sla","name":"North Star | Approval & SLA","description":"Human-attention queue and Gate 3A SLA state.","cards":[
+      {"question":"sla.pending","row":0,"col":0,"width":6,"height":4},{"question":"sla.overdue","row":0,"col":6,"width":6,"height":4},{"question":"sla.escalations","row":0,"col":12,"width":12,"height":4},
+      {"question":"sla.role","row":4,"col":0,"width":12,"height":8},{"question":"sla.risk","row":4,"col":12,"width":12,"height":8},
+      {"question":"sla.stage","row":12,"col":0,"width":24,"height":8},{"question":"sla.oldest","row":20,"col":0,"width":24,"height":10}]},
+    {"key":"reliability","name":"North Star | Reliability & Recovery","description":"Gate 3B outbox delivery, retry pressure, dead letters, and workflow failures.","cards":[
+      {"question":"reliability.pending","row":0,"col":0,"width":6,"height":4},{"question":"reliability.dead_letter","row":0,"col":6,"width":6,"height":4},{"question":"reliability.status","row":0,"col":12,"width":12,"height":8},
+      {"question":"reliability.attempts","row":8,"col":0,"width":12,"height":8},{"question":"reliability.failures","row":8,"col":12,"width":12,"height":8},
+      {"question":"reliability.failure_categories","row":16,"col":0,"width":12,"height":8},{"question":"reliability.approaching","row":16,"col":12,"width":12,"height":8},
+      {"question":"reliability.oldest","row":24,"col":0,"width":24,"height":10}]},
+    {"key":"context","name":"North Star | Governed Context Health","description":"Current policy and business-term trust, ownership, certification, and freshness.","cards":[
+      {"question":"context.policy_total","row":0,"col":0,"width":6,"height":4},{"question":"context.review","row":0,"col":6,"width":6,"height":4},{"question":"context.expired","row":0,"col":12,"width":12,"height":4},
+      {"question":"context.policy_states","row":4,"col":0,"width":12,"height":8},{"question":"context.terms","row":4,"col":12,"width":12,"height":8},
+      {"question":"context.owners","row":12,"col":0,"width":24,"height":8},{"question":"context.current","row":20,"col":0,"width":24,"height":10}]},
+    {"key":"trace","name":"North Star | Decision Trace & Risk","description":"Structural decision evidence and risk-signal activity; this does not claim hash verification.","cards":[
+      {"question":"trace.decisions","row":0,"col":0,"width":6,"height":4},{"question":"trace.triggered","row":0,"col":6,"width":6,"height":4},{"question":"trace.completeness","row":0,"col":12,"width":12,"height":4},
+      {"question":"trace.trust","row":4,"col":0,"width":12,"height":8},{"question":"trace.signals","row":4,"col":12,"width":12,"height":8},
+      {"question":"trace.recent","row":12,"col":0,"width":24,"height":10}]}
+  ]
+}

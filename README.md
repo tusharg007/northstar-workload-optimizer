@@ -192,6 +192,10 @@ the existing analytics assets:
   curated cases across decision, risk, context safety, provenance, historical
   context, idempotency, and reliability. It uses exact ground truth, strict
   thresholds, SQLite/PostgreSQL/LIVE profiles, and no LLM judge.
+- An optional **read-only Metabase observability plane** provides exactly five
+  source-controlled operator dashboards over nine sanitized PostgreSQL views.
+  A dedicated principal can select only those views; Metabase is outside the
+  FastAPI and n8n write path.
 
 See [DEMO.md](DEMO.md) for the shortest Windows setup, import steps, commands,
 and five-minute interview sequence. Gate 3A design and runtime proof are in
@@ -203,3 +207,6 @@ Gate 4B design and PostgreSQL/live verification are in
 Gate 5 commands and verified benchmark evidence are in
 [evals/README.md](evals/README.md) and
 [docs/architecture/G5_EVALUATION_HARNESS.md](docs/architecture/G5_EVALUATION_HARNESS.md).
+Gate 6 setup, security boundaries, dashboard inventory, and verification are in
+[metabase/README.md](metabase/README.md) and
+[docs/architecture/G6_METABASE_OBSERVABILITY.md](docs/architecture/G6_METABASE_OBSERVABILITY.md).
