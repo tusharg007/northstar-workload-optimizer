@@ -212,7 +212,6 @@ new PowerShell window, use local-only credentials and the Docker CLI path that
 is installed with Docker Desktop:
 
 ```powershell
-$docker="C:\Users\hp\AppData\Local\Programs\DockerDesktop\resources\bin\docker.exe"
 $env:NORTHSTAR_POSTGRES_ADMIN_PASSWORD="choose-a-local-admin-password"
 $env:NORTHSTAR_METABASE_DB_PASSWORD="choose-a-distinct-readonly-password"
 $env:METABASE_ADMIN_PASSWORD="choose-a-local-metabase-password"
@@ -220,13 +219,13 @@ $env:NORTHSTAR_DATABASE_URL="postgresql+psycopg://northstar:$env:NORTHSTAR_POSTG
 $env:METABASE_URL="http://localhost:3000"
 $env:NORTHSTAR_METABASE_DB_HOST="postgres"
 
-& $docker compose -p northstar-g6 -f infra\metabase\docker-compose.metabase.yml up -d postgres
+docker compose -p northstar-g6 -f infra\metabase\docker-compose.metabase.yml up -d postgres
 .\.venv\Scripts\python.exe -m alembic upgrade head
 .\.venv\Scripts\python.exe scripts\seed_context_registry.py --write
 .\.venv\Scripts\python.exe scripts\create_metabase_readonly_role.py
 .\.venv\Scripts\python.exe -m scripts.seed_observability_demo
 .\.venv\Scripts\python.exe -m metabase.prepare_artifact
-& $docker compose -p northstar-g6 -f infra\metabase\docker-compose.metabase.yml up -d metabase
+docker compose -p northstar-g6 -f infra\metabase\docker-compose.metabase.yml up -d metabase
 .\.venv\Scripts\python.exe -m metabase.bootstrap
 .\.venv\Scripts\python.exe -m metabase.live_validate
 ```

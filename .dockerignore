@@ -23,6 +23,7 @@ n8n/state
 metabase/.runtime
 evals/reports/*
 !evals/reports/.gitkeep
+automation/demo_results.json
 notebooks
 proposal
 dashboard

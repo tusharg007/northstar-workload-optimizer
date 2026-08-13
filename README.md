@@ -1,48 +1,79 @@
 # North Star Workload Optimizer
 
-North Star is a deterministic expense-control system built to make automated decisions safe, explainable, durable, and demonstrable. n8n coordinates webhooks and human waits; FastAPI owns financial policy behavior; PostgreSQL preserves operational truth; governed context can force safe abstention; immutable provenance explains every persisted decision; Metabase observes through a read-only boundary; and MCP exposes a minimized client interface.
+North Star is a governed expense-operations reference system. It combines deterministic policy execution, durable workflow orchestration, authoritative enterprise context, immutable decision provenance, regression evaluation, read-only observability, and a controlled MCP interface. Financial outcomes are decided by versioned Python logic—not an LLM—while MCP-compatible clients can inspect trusted context and invoke existing governed workflows.
+
+## What North Star demonstrates
+
+- Separation of operator-visible orchestration from deterministic domain logic.
+- Safe abstention when policy ownership, certification, freshness, or engine binding is not authoritative.
+- Durable human approval and recoverable external effects across restarts.
+- Evidence-backed decisions that retain the policy, context, rules, risk signals, and human action used at decision time.
+- Reproducible local release infrastructure with deterministic tests and benchmarks.
 
 ## Architecture
 
 ```mermaid
-flowchart LR
-    Client["Expense client"] --> N8N["n8n orchestration"]
-    MCP["MCP client"] --> API["FastAPI domain layer"]
-    MCP -->|"controlled writes"| N8N
+flowchart TD
+    Clients["Clients / MCP"] --> N8N["n8n orchestration"]
+    Clients -->|"bounded reads"| API["FastAPI domain boundary"]
     N8N --> API
-    API --> Context["Governed context"]
-    API --> Engine["Deterministic engines"]
-    Context --> PG[("PostgreSQL")]
-    Engine --> PG
-    PG --> Outbox["Outbox / recovery"]
-    Outbox --> N8N
-    N8N --> Human["Durable HITL"]
-    PG --> Views["Observability views"]
+    API --> Context["Governed context registry"]
+    API --> Engines["Deterministic engines"]
+    Context --> PG[("PostgreSQL operational truth")]
+    Engines --> PG
+    API --> PG
+    PG --> Reliability["Outbox / reliability"]
+    PG --> Provenance["Immutable provenance"]
+    Reliability --> N8N
+    N8N --> Human["Human approval"]
+    PG --> Views["Approved observability views"]
     Views --> MB["Metabase read-only"]
 ```
 
-The release stack uses separate `northstar`, `n8n_app`, and `metabase_app` databases and principals. See [final architecture](docs/architecture/FINAL_ARCHITECTURE.md), [ADRs](docs/adr), and [security boundaries](docs/SECURITY_BOUNDARIES.md).
+MCP write tools route through n8n; they do not bypass orchestration. Metabase can select only approved `observability.*` views through a dedicated read-only role. The release uses separate `northstar`, `n8n_app`, and `metabase_app` databases and principals. See the [current architecture](docs/architecture/FINAL_ARCHITECTURE.md) and [ADRs](docs/adr).
 
-## Engineering properties
+## Core engineering properties
 
-- Deterministic validation, anomaly detection, risk classification, and approval routing; no LLM decides financial policy.
-- PostgreSQL transactions, idempotency, correlation, immutable human decisions, and durable n8n Wait/resume.
-- Transactional outbox with leasing, bounded retries, delivery attempts, dead-letter/replay, and reconciliation. Delivery is explicitly at least once.
-- Versioned policy/business-term ownership, certification, freshness and engine binding. Unsafe context causes abstention before a decision is persisted.
-- Canonical provenance snapshots and references with hash verification and lineage APIs.
-- Versioned deterministic evaluation data and baselines.
-- Official MCP Python SDK v2 provider: 12 tools, five resource templates, one prompt; stdio is primary and HTTP is loopback-only.
-- Metabase OSS 0.63.2.7: 36 source-controlled questions across five dashboards, reading only approved `observability.*` views.
+- Deterministic validation, anomaly signals, risk classification, and approval routing; no LLM makes financial decisions.
+- PostgreSQL transactions, idempotency keys, correlation, immutable human decisions, and durable n8n Wait/resume state.
+- Transactional outbox, leases, bounded retry, delivery attempts, dead-letter/replay, and reconciliation.
+- At-least-once delivery with idempotent consumers/effects—not an exactly-once claim.
+- Forward-only Alembic migrations and hash-locked Python dependencies for Python 3.13.9.
 
-## Verified evaluation evidence
+## Governed context and provenance
 
-- Gate 5: 37 benchmark cases; unsafe action rate `0/7`; provenance verification `23/23`.
-- MCP: FAST `17/17`; PostgreSQL+n8n stdio `16/16`.
-- Gate 7 baseline: SQLite `113 passed, 13 skipped`; PostgreSQL `125 passed, 1 skipped`.
+Policy and business-term versions carry ownership, certification, effective periods, freshness evidence, and deterministic hashes. North Star abstains before persisting a financial decision when required context is missing, conflicted, stale, untrusted, or inconsistent with the engine manifest.
 
-These are deterministic release-baseline results, not claims of production security or exactly-once delivery.
+Every persisted decision records canonical context, rule, risk-signal, engine, and later human-decision evidence. References retain navigability; immutable snapshots preserve historical meaning; deterministic hash verification detects evidence changes.
 
-## Quick start: reproducible stack
+## Reliability model
+
+Business state and external-effect intent commit in one PostgreSQL transaction. Leased workers deliver outbox events with stable delivery keys, record every attempt, retry transient failures, and move exhausted events to a replayable dead-letter state. This produces recoverable at-least-once delivery; downstream effects must remain idempotent.
+
+## Evaluation
+
+Conventional tests and deterministic benchmark cases answer different questions:
+
+| Evidence | Verified Gate 9 result |
+|---|---:|
+| SQLite pytest | 122 passed, 13 skipped |
+| PostgreSQL pytest | 134 passed, 1 skipped |
+| Gate 5 FAST benchmark | 37/37 |
+| Gate 5 PostgreSQL benchmark | 37/37 |
+| MCP FAST contract benchmark | 17/17 |
+| MCP PostgreSQL+n8n stdio benchmark | 16/16 |
+
+The Gate 5 safety cases measured unsafe actions `0/7`, abstention recall `7/7`, abstention precision `7/7`, and provenance verification `23/23`. These are exact results on curated, versioned deterministic cases—not statistical model accuracy or evidence of generalization to production data. See [evaluation design](evals/README.md) and the [portfolio evidence matrix](docs/PORTFOLIO_EVIDENCE.md).
+
+## MCP interface
+
+The official MCP Python SDK 2.0.0 provider exposes 12 tools, five resource templates, and one optional prompt. stdio is the primary transport; local Streamable HTTP rejects non-loopback bindings. Consequential actions follow `MCP → n8n → FastAPI → PostgreSQL/HITL`. HTTP mode is demo/local only because authentication and MCP OAuth are not implemented.
+
+## Observability
+
+Metabase OSS 0.63.2.7 reconciles 36 source-controlled questions across five dashboards: operations, approval/SLA, reliability/recovery, governed-context health, and decision trace/risk. Its source role is read-only and limited to approved views. Dashboards show structural provenance completeness; cryptographic provenance verification remains an application operation, not a SQL claim.
+
+## Quick start
 
 Prerequisites: Docker Desktop with Compose, Git, and Python 3.13.9. PowerShell is the verified Windows shell.
 
@@ -50,9 +81,9 @@ Prerequisites: Docker Desktop with Compose, Git, and Python 3.13.9. PowerShell i
 git clone <repository-url>
 Set-Location northstar-workload-optimizer
 Copy-Item .env.example .env
-# Edit .env and replace every change-me value with disposable local secrets.
+# Replace every change-me value with a disposable local secret.
 
-python -m venv .venv  # use a Python 3.13.9 executable
+python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install uv==0.12.3
 .\.venv\Scripts\uv.exe pip sync --python .\.venv\Scripts\python.exe --require-hashes requirements.lock
 
@@ -60,54 +91,47 @@ python -m venv .venv  # use a Python 3.13.9 executable
 .\scripts\stack.ps1 verify
 ```
 
-Endpoints are loopback-only by default:
+The stack brings up PostgreSQL 16.14, applies migrations and governed-context seed data, starts FastAPI, imports exactly ten n8n workflows, and reconciles Metabase's five dashboards and 36 questions. The verifier then exercises the suspicious-expense, approval, Wait/resume, outbox, human-evidence, and provenance path.
 
-- FastAPI: `http://127.0.0.1:8000/docs`
-- n8n: `http://127.0.0.1:5679`
-- Metabase: `http://127.0.0.1:3000`
-- PostgreSQL debugging: `127.0.0.1:55432`
+Loopback endpoints are FastAPI `http://127.0.0.1:8000/docs`, n8n `http://127.0.0.1:5679`, Metabase `http://127.0.0.1:3000`, and PostgreSQL debugging `127.0.0.1:55432`. Stop without deleting demo volumes using `.\scripts\stack.ps1 down`.
 
-Stop without deleting durable demo volumes:
+## Demo
 
-```powershell
-.\scripts\stack.ps1 down
-```
+Use the [interview demo script](docs/DEMO_SCRIPT.md) for prepared 30-second, five-minute, and ten-minute versions. [DEMO.md](DEMO.md) retains the detailed manual Windows workflow.
 
-Do not expose this stack to an untrusted network. Read [security boundaries](docs/SECURITY_BOUNDARIES.md) first.
-
-## Local/manual mode
-
-Docker is additive: SQLite tests, local FastAPI, local n8n, and MCP stdio remain usable. The detailed Windows sequence is in [DEMO.md](DEMO.md). Use the official SDK Inspector during development:
+For MCP development, the official SDK Inspector command is:
 
 ```powershell
 $env:UV_CACHE_DIR="$PWD\.tmp\uv-cache"
 .\.venv\Scripts\uv.exe run mcp dev mcp_server\server.py
 ```
 
-## Tests and release checks
+## Tests
 
 ```powershell
-# Full non-live local mirror: lock, compile, pip, validators, SQLite, Gate 5 FAST, MCP FAST
+# Full non-live mirror: dependency lock, compile, pip, validators,
+# SQLite pytest, Gate 5 FAST, MCP FAST, and whitespace checks.
 .\.venv\Scripts\python.exe scripts\release_check.py
 
-# Individual suites
-.\.venv\Scripts\python.exe -m pytest -q
+# Individual deterministic benchmarks.
 .\.venv\Scripts\python.exe -m scripts.run_evals --profile fast
 .\.venv\Scripts\python.exe -m scripts.run_mcp_evals --profile fast
-
-# Live stack inventory + suspicious expense + approval + Wait/outbox/provenance
-.\scripts\stack.ps1 verify
 ```
 
-The primary CI workflow runs static, SQLite, PostgreSQL 16.14, and Docker build/config jobs. A manual integration workflow starts the full Compose stack and runs live MCP/Metabase checks.
+GitHub Actions workflows are defined for static, SQLite, PostgreSQL 16.14, Docker structural, and manual full-stack integration checks. Their commands mirror locally verified release commands; this repository does not claim a remote GitHub Actions run has passed.
 
-## Demo and design documentation
+## Documentation
 
-- [Five-minute demo and technical talk track](docs/DEMO_SCRIPT.md)
-- [Gate 9 release design](docs/architecture/G9_REPRODUCIBLE_RELEASE.md)
-- [Final architecture](docs/architecture/FINAL_ARCHITECTURE.md)
-- [Security boundaries](docs/SECURITY_BOUNDARIES.md)
-- [Coding-agent invariants](AGENTS.md)
-- [Gate history](docs/architecture)
+- [Detailed current architecture](docs/architecture/FINAL_ARCHITECTURE.md)
+- [Current released runtime baseline](docs/architecture/CURRENT_STATE.md)
+- [Capability-to-evidence matrix](docs/PORTFOLIO_EVIDENCE.md)
+- [Interview demo and talk track](docs/DEMO_SCRIPT.md)
+- [Security boundaries and production gaps](docs/SECURITY_BOUNDARIES.md)
+- [Architecture decisions](docs/adr)
+- [Historical gate evidence](docs/architecture)
 
-Voice, production identity/RBAC, remote MCP authentication, TLS, production secret management, HA/backups, and real notification providers are intentionally outside this release.
+Files named `G*.md` are historical implementation/release evidence. `FINAL_ARCHITECTURE.md` and `CURRENT_STATE.md` describe the current system.
+
+## Security and limitations
+
+The release is a loopback-only demonstration foundation, not an internet-facing production deployment. It does not implement production authentication, identity-bound approvers, RBAC, MCP OAuth, TLS termination, a secret manager, cloud network policy, backups/HA, or real notification providers. Do not expose it to an untrusted network. Voice is intentionally deferred and is not required by this release. See [security boundaries](docs/SECURITY_BOUNDARIES.md).

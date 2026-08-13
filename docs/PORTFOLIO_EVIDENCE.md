@@ -1,0 +1,19 @@
+# Portfolio evidence matrix
+
+This matrix connects the public engineering claims to source and repeatable evidence. Exact release results are recorded in [Gate 9 release evidence](architecture/G9_REPRODUCIBLE_RELEASE.md).
+
+| Capability | Implementation | Why it exists | Verification | Primary file/doc |
+|---|---|---|---|---|
+| Deterministic expense decisioning | Versioned validation, risk, and routing engines | Financial outcomes remain testable and independent of an LLM | Unit/API suites and Gate 5 decision/risk cases | [`automation/automation_flow.py`](../automation/automation_flow.py), [Gate 5](architecture/G5_EVALUATION_HARNESS.md) |
+| Durable HITL | PostgreSQL approval state plus n8n Wait/resume orchestration | Human decisions survive process and n8n restarts | Waiting execution survived restart, then completed after approval | [Gate 3A](architecture/G3A_DURABLE_HITL_SLA.md), [Gate 9](architecture/G9_REPRODUCIBLE_RELEASE.md) |
+| Transactional outbox | Business state and effect intent commit together; leased delivery, attempts, retry, DLQ/replay | Prevents committed effects from being silently lost | Gate 3B crash-window/concurrency tests and Gate 5 reliability cases | [`app/reliability.py`](../app/reliability.py), [Gate 3B](architecture/G3B_RELIABILITY_OUTBOX.md) |
+| Idempotency | Canonical payload hash plus client/derived keys and stable delivery keys | Makes request replay and at-least-once delivery safe | Exact-replay and changed-payload conflict cases | [Gate 5](architecture/G5_EVALUATION_HARNESS.md) |
+| Policy/context governance | Versioned owners, terms, policies, trust, freshness, and engine bindings | Automation must know which enterprise definitions are authoritative | Gate 4A tests and Gate 5 context-resolution cases | [`app/context`](../app/context), [Gate 4A](architecture/G4A_GOVERNED_CONTEXT_REGISTRY.md) |
+| Safe abstention | Policy-dependent processing fails closed before decision persistence | Avoids acting on missing, stale, conflicted, or mismatched context | Recall `7/7`, precision `7/7`, unsafe actions `0/7` | [Gate 5](architecture/G5_EVALUATION_HARNESS.md) |
+| Immutable provenance | Canonical snapshots/references and deterministic aggregate/human hashes | Retains exact historical decision evidence and detects changes | Provenance verification `23/23`; live release provenance `PASS` | [`app/provenance`](../app/provenance), [Gate 4B](architecture/G4B_DECISION_PROVENANCE.md) |
+| Evaluation harness | Immutable v1 datasets/baseline, exact metrics, FAST/PostgreSQL profiles | Turns safety and contract claims into regression gates | Gate 5 FAST and PostgreSQL `37/37` | [`evals`](../evals), [Gate 5](architecture/G5_EVALUATION_HARNESS.md) |
+| Read-only observability | Dedicated source role limited to nine `observability.*` views; 36 questions/five dashboards | Operators gain visibility without a mutation path | Role-denial tests, manifest/live validators | [`observability`](../observability), [Gate 6](architecture/G6_METABASE_OBSERVABILITY.md) |
+| Governed MCP provider | Official MCP SDK; minimized API reads and n8n-routed writes | Gives compatible clients trusted context/actions without bypassing controls | Contract validator; FAST `17/17`; live stdio `16/16` | [`mcp_server`](../mcp_server), [Gate 7](architecture/G7_GOVERNED_MCP_PROVIDER.md) |
+| Reproducible Compose release | Locked dependencies, non-root app image, ordered one-shots, isolated service databases | Makes a clean checkout demonstrable without manual wiring | Two fresh-volume starts, full restart persistence, release verifier | [`docker-compose.yml`](../docker-compose.yml), [Gate 9](architecture/G9_REPRODUCIBLE_RELEASE.md) |
+
+The delivery guarantee is at least once. Dashboard provenance checks are structural; deterministic hash verification is performed by the application verifier.

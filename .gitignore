@@ -41,6 +41,8 @@ n8n-data/
 
 # Durable local demo state (created automatically)
 data/northstar_runtime*.db
+data/northstar.db
+automation/demo_results.json
 
 # SQLite transient/test files
 tests/*.db
