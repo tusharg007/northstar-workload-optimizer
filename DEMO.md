@@ -1,6 +1,20 @@
 # North Star Automation v2 Demo
 
-This runbook starts the complete local path:
+The reproducible interview path is the Gate 9 Compose stack:
+
+```powershell
+Copy-Item .env.example .env
+# Replace every change-me value in .env.
+.\scripts\stack.ps1 up
+.\scripts\stack.ps1 verify
+```
+
+This automatically provisions PostgreSQL, migrations, governed context, all
+ten n8n workflows, Metabase's 36 questions/five dashboards, and the demo
+notification sink. It uses n8n on port 5679. See `docs\DEMO_SCRIPT.md` for the
+five-minute walkthrough.
+
+The rest of this runbook preserves the non-Docker local path:
 
 `MCP client -> n8n public workflow -> n8n service workflow -> FastAPI -> Python pipeline -> operational database`
 
@@ -12,16 +26,17 @@ Approval decisions return through a second n8n webhook. The analytical
 Open PowerShell in the repository root:
 
 ```powershell
-python --version
+python --version  # must report 3.13.9 for the verified release environment
 node --version
 npx.cmd --version
 python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m pip install uv==0.12.3
+.\.venv\Scripts\uv.exe pip sync --python .\.venv\Scripts\python.exe --require-hashes requirements.lock
 npx.cmd --yes n8n --version
 ```
 
-These commands require Python 3.10+ and Node.js. `uv` is installed from
-`requirements.txt`. The runbook deliberately uses explicit `.venv` executables
+These commands use the release-tested Python 3.13.9 and Node.js. The runbook
+deliberately uses explicit `.venv` executables
 and `npx.cmd`, so it works even when PowerShell script execution is disabled.
 Docker is not required.
 

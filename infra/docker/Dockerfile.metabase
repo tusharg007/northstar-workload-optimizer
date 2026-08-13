@@ -1,0 +1,8 @@
+# syntax=docker/dockerfile:1.7
+FROM metabase/metabase:v0.61.2.x@sha256:bd846162f7cdf81e8160917bdff6831733db129a1d38c9c9e872db93f90d489f AS java-runtime
+
+FROM metabase/metabase:v0.63.2.x@sha256:095503d38b0048c1e7b499509d04ffb7b9999167872199a34bb7b73c5913fb9d
+
+# The 0.63.2.7 image's published JDK files are zero-length. Preserve the
+# verified Metabase application image and replace only its Temurin runtime.
+COPY --from=java-runtime /opt/java/openjdk /opt/java/openjdk

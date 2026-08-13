@@ -1,0 +1,54 @@
+name: Full release integration
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: northstar-full-integration
+  cancel-in-progress: false
+
+jobs:
+  compose-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      METABASE_ADMIN_PASSWORD: integration-metabase-admin
+      NORTHSTAR_API_BASE_URL: http://127.0.0.1:8000
+      N8N_EXPENSE_WEBHOOK_URL: http://127.0.0.1:5679/webhook/northstar-expense
+      N8N_APPROVAL_WEBHOOK_URL: http://127.0.0.1:5679/webhook/northstar-approval
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: 3.13.9
+          cache: pip
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: 0.12.3
+          enable-cache: true
+      - run: uv pip install --system --require-hashes -r requirements.lock
+      - name: Configure disposable credentials
+        run: |
+          cp .env.example .env
+          sed -i 's/change-me-metabase-admin-password/integration-metabase-admin/' .env
+      - name: Start complete stack
+        run: docker compose -p northstar-g9-ci up --build -d
+      - name: Verify stack and smoke
+        run: python scripts/verify_stack.py --project northstar-g9-ci --wait-seconds 600
+      - name: MCP stdio integration
+        run: python -m scripts.run_mcp_evals --profile stdio
+      - name: Validate every Metabase question
+        env:
+          NORTHSTAR_DATABASE_URL: postgresql+psycopg://northstar_app:change-me-app-password@127.0.0.1:55432/northstar
+          NORTHSTAR_METABASE_DB_PASSWORD: change-me-readonly-password
+          METABASE_URL: http://127.0.0.1:3000
+        run: python -m metabase.live_validate
+      - name: Logs on failure
+        if: failure()
+        run: docker compose -p northstar-g9-ci logs --no-color --tail=500
+      - name: Remove only integration project resources
+        if: always()
+        run: docker compose -p northstar-g9-ci down --volumes --remove-orphans

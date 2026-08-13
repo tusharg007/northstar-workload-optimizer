@@ -1,0 +1,226 @@
+name: northstar-g9
+
+x-app-image: &app-image
+  build:
+    context: .
+    dockerfile: infra/docker/Dockerfile.app
+  image: northstar-app:g9
+
+x-n8n-environment: &n8n-environment
+  DB_TYPE: postgresdb
+  DB_POSTGRESDB_HOST: postgres
+  DB_POSTGRESDB_PORT: 5432
+  DB_POSTGRESDB_DATABASE: n8n_app
+  DB_POSTGRESDB_USER: ${N8N_DB_USER:-northstar_n8n}
+  DB_POSTGRESDB_PASSWORD: ${N8N_DB_PASSWORD:?set N8N_DB_PASSWORD in .env}
+  DB_POSTGRESDB_SCHEMA: public
+  N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:?set N8N_ENCRYPTION_KEY in .env}
+  N8N_HOST: 127.0.0.1
+  N8N_PORT: 5679
+  N8N_LISTEN_ADDRESS: 0.0.0.0
+  N8N_PROTOCOL: http
+  N8N_EDITOR_BASE_URL: http://127.0.0.1:5679/
+  WEBHOOK_URL: http://127.0.0.1:5679/
+  N8N_SECURE_COOKIE: "false"
+  N8N_DIAGNOSTICS_ENABLED: "false"
+  N8N_VERSION_NOTIFICATIONS_ENABLED: "false"
+  N8N_PERSONALIZATION_ENABLED: "false"
+  N8N_RUNNERS_ENABLED: "true"
+  N8N_RUNNERS_BROKER_PORT: 5680
+  N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: "true"
+  GENERIC_TIMEZONE: UTC
+  TZ: UTC
+
+services:
+  postgres:
+    image: postgres:16.14
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${NORTHSTAR_POSTGRES_ADMIN_USER:-northstar_admin}
+      POSTGRES_PASSWORD: ${NORTHSTAR_POSTGRES_ADMIN_PASSWORD:?set NORTHSTAR_POSTGRES_ADMIN_PASSWORD in .env}
+      POSTGRES_DB: postgres
+      NORTHSTAR_APP_DB_USER: ${NORTHSTAR_APP_DB_USER:-northstar_app}
+      NORTHSTAR_APP_DB_PASSWORD: ${NORTHSTAR_APP_DB_PASSWORD:?set NORTHSTAR_APP_DB_PASSWORD in .env}
+      N8N_DB_USER: ${N8N_DB_USER:-northstar_n8n}
+      N8N_DB_PASSWORD: ${N8N_DB_PASSWORD:?set N8N_DB_PASSWORD in .env}
+      METABASE_APP_DB_USER: ${METABASE_APP_DB_USER:-northstar_metabase}
+      METABASE_APP_DB_PASSWORD: ${METABASE_APP_DB_PASSWORD:?set METABASE_APP_DB_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:${NORTHSTAR_POSTGRES_PORT:-55432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/docker/postgres-init.sh:/docker-entrypoint-initdb.d/01-northstar-databases.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d postgres"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+      start_period: 5s
+    networks: [northstar_private]
+
+  northstar-migrate:
+    <<: *app-image
+    command: ["python", "-m", "alembic", "upgrade", "head"]
+    environment:
+      NORTHSTAR_DATABASE_URL: postgresql+psycopg://${NORTHSTAR_APP_DB_USER:-northstar_app}:${NORTHSTAR_APP_DB_PASSWORD:?set NORTHSTAR_APP_DB_PASSWORD in .env}@postgres:5432/northstar
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    networks: [northstar_private]
+
+  northstar-seed-context:
+    <<: *app-image
+    command: ["python", "scripts/seed_context_registry.py", "--write"]
+    environment:
+      NORTHSTAR_DATABASE_URL: postgresql+psycopg://${NORTHSTAR_APP_DB_USER:-northstar_app}:${NORTHSTAR_APP_DB_PASSWORD:?set NORTHSTAR_APP_DB_PASSWORD in .env}@postgres:5432/northstar
+    depends_on:
+      northstar-migrate:
+        condition: service_completed_successfully
+    restart: "no"
+    networks: [northstar_private]
+
+  northstar-metabase-role:
+    <<: *app-image
+    command: ["python", "scripts/create_metabase_readonly_role.py"]
+    environment:
+      NORTHSTAR_DATABASE_URL: postgresql+psycopg://${NORTHSTAR_POSTGRES_ADMIN_USER:-northstar_admin}:${NORTHSTAR_POSTGRES_ADMIN_PASSWORD:?set NORTHSTAR_POSTGRES_ADMIN_PASSWORD in .env}@postgres:5432/northstar
+      NORTHSTAR_METABASE_DB_USER: ${NORTHSTAR_METABASE_DB_USER:-northstar_metabase_ro}
+      NORTHSTAR_METABASE_DB_PASSWORD: ${NORTHSTAR_METABASE_DB_PASSWORD:?set NORTHSTAR_METABASE_DB_PASSWORD in .env}
+    depends_on:
+      northstar-migrate:
+        condition: service_completed_successfully
+    restart: "no"
+    networks: [northstar_private]
+
+  api:
+    <<: *app-image
+    restart: unless-stopped
+    environment:
+      NORTHSTAR_DATABASE_URL: postgresql+psycopg://${NORTHSTAR_APP_DB_USER:-northstar_app}:${NORTHSTAR_APP_DB_PASSWORD:?set NORTHSTAR_APP_DB_PASSWORD in .env}@postgres:5432/northstar
+      NORTHSTAR_OUTBOX_RETRY_SECONDS: ${NORTHSTAR_OUTBOX_RETRY_SECONDS:-0,15,60,300}
+      NORTHSTAR_OUTBOX_MAX_ATTEMPTS: ${NORTHSTAR_OUTBOX_MAX_ATTEMPTS:-4}
+      NORTHSTAR_OUTBOX_LEASE_SECONDS: ${NORTHSTAR_OUTBOX_LEASE_SECONDS:-30}
+    depends_on:
+      northstar-seed-context:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:${NORTHSTAR_API_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).read()"]
+      interval: 3s
+      timeout: 5s
+      retries: 30
+      start_period: 5s
+    networks: [northstar_private]
+
+  notification-sink:
+    <<: *app-image
+    command: ["uvicorn", "scripts.notification_sink:app", "--host", "0.0.0.0", "--port", "9010"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9010/health', timeout=3).read()"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+    networks: [northstar_private]
+
+  n8n-bootstrap:
+    image: n8nio/n8n:2.22.6
+    entrypoint: ["/bin/sh", "/bootstrap/n8n-bootstrap.sh"]
+    environment: *n8n-environment
+    depends_on:
+      postgres:
+        condition: service_healthy
+      northstar-seed-context:
+        condition: service_completed_successfully
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./n8n/workflows:/workflows-source:ro
+      - ./infra/docker/n8n-bootstrap.sh:/bootstrap/n8n-bootstrap.sh:ro
+    restart: "no"
+    networks: [northstar_private]
+
+  n8n:
+    image: n8nio/n8n:2.22.6
+    restart: unless-stopped
+    environment: *n8n-environment
+    depends_on:
+      n8n-bootstrap:
+        condition: service_completed_successfully
+      api:
+        condition: service_healthy
+      notification-sink:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${N8N_PORT:-5679}:5679"
+    volumes:
+      - n8n_data:/home/node/.n8n
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:5679/healthz/readiness"]
+      interval: 5s
+      timeout: 5s
+      retries: 40
+      start_period: 10s
+    networks: [northstar_private]
+
+  metabase:
+    image: northstar-metabase:g9
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.metabase
+    restart: unless-stopped
+    environment:
+      MB_DB_TYPE: postgres
+      MB_DB_HOST: postgres
+      MB_DB_PORT: 5432
+      MB_DB_DBNAME: metabase_app
+      MB_DB_USER: ${METABASE_APP_DB_USER:-northstar_metabase}
+      MB_DB_PASS: ${METABASE_APP_DB_PASSWORD:?set METABASE_APP_DB_PASSWORD in .env}
+      MB_ENCRYPTION_SECRET_KEY: ${METABASE_ENCRYPTION_SECRET_KEY:?set METABASE_ENCRYPTION_SECRET_KEY in .env}
+      MB_SEND_EMAIL_ON_FIRST_LOGIN_FROM_NEW_DEVICE: "false"
+      JAVA_TIMEZONE: UTC
+    depends_on:
+      postgres:
+        condition: service_healthy
+      northstar-metabase-role:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:${METABASE_PORT:-3000}:3000"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+      start_period: 20s
+    networks: [northstar_private]
+
+  metabase-bootstrap:
+    <<: *app-image
+    command: ["python", "-m", "metabase.bootstrap"]
+    environment:
+      METABASE_URL: http://metabase:3000
+      METABASE_ADMIN_EMAIL: ${METABASE_ADMIN_EMAIL:-admin@northstar.local}
+      METABASE_ADMIN_PASSWORD: ${METABASE_ADMIN_PASSWORD:?set METABASE_ADMIN_PASSWORD in .env}
+      METABASE_HTTP_TIMEOUT_SECONDS: ${METABASE_HTTP_TIMEOUT_SECONDS:-20}
+      METABASE_READY_TIMEOUT_SECONDS: ${METABASE_READY_TIMEOUT_SECONDS:-300}
+      NORTHSTAR_METABASE_DB_HOST: postgres
+      NORTHSTAR_METABASE_DB_PORT: 5432
+      NORTHSTAR_METABASE_DB_NAME: northstar
+      NORTHSTAR_METABASE_DB_USER: ${NORTHSTAR_METABASE_DB_USER:-northstar_metabase_ro}
+      NORTHSTAR_METABASE_DB_PASSWORD: ${NORTHSTAR_METABASE_DB_PASSWORD:?set NORTHSTAR_METABASE_DB_PASSWORD in .env}
+    depends_on:
+      metabase:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    restart: "no"
+    networks: [northstar_private]
+
+networks:
+  northstar_private:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  n8n_data:

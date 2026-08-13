@@ -1,220 +1,113 @@
-# 🌟 North Star Workload Optimizer
+# North Star Workload Optimizer
 
-> **Digital Transformation for Enterprise Expense Management**
-> 
-> End-to-end consulting project demonstrating process reengineering, data engineering, business intelligence, and automation — reducing expense processing cycle time by **78%** and saving **$434K annually**.
+North Star is a deterministic expense-control system built to make automated decisions safe, explainable, durable, and demonstrable. n8n coordinates webhooks and human waits; FastAPI owns financial policy behavior; PostgreSQL preserves operational truth; governed context can force safe abstention; immutable provenance explains every persisted decision; Metabase observes through a read-only boundary; and MCP exposes a minimized client interface.
 
-![Python](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)
-![Pandas](https://img.shields.io/badge/Pandas-2.0+-150458?logo=pandas&logoColor=white)
-![SQLite](https://img.shields.io/badge/SQLite-3-003B57?logo=sqlite&logoColor=white)
-![Power BI](https://img.shields.io/badge/Power%20BI-Dashboard-F2C811?logo=powerbi&logoColor=black)
-![License](https://img.shields.io/badge/License-MIT-green)
+## Architecture
 
----
-
-## 📋 Problem Statement
-
-A mid-sized professional services firm processes **420 expense reports/month** through a **12-step manual workflow** spanning 4 organizational layers. The current process suffers from:
-
-| Metric | Current State | Target | Improvement |
-|--------|:---:|:---:|:---:|
-| End-to-end cycle time | 9.7 days | 2.1 days | **78% faster** |
-| Annual operating cost | $620,647 | $186,194 | **70% reduction** |
-| Data entry error rate | 18% | 5% | **72% fewer errors** |
-| Reports per FTE/day | 8 | 25 | **3.1x increase** |
-
-## 🏗️ Solution Architecture
-
-The North Star Workload Optimizer is a 5-layer solution:
-
-1. **Data Sources** — SharePoint, Email, Forms, Corporate Card feeds
-2. **ETL Layer** — Python + Pandas pipeline with validation & cleaning
-3. **AI/Processing** — Anomaly detection, policy validation, approval routing
-4. **Data Store** — SQLite (dev) / Azure SQL (production)
-5. **Analytics** — Power BI dashboard with 5 KPIs, 4 pages
-
-![Architecture Diagram](diagrams/architecture_diagram.png)
-
-## 🔑 Key Results
-
-- **5,000** expense records generated & analyzed across 18 months
-- **664** anomalies detected (13.3% anomaly rate) via rule-based engine
-- **5** SQL window function queries for pattern analysis
-- **10-slide** ROI deck with data-driven metrics
-- **78%** cycle time reduction demonstrated
-
-## 📁 Repository Structure
-
-```
-northstar-workload-optimizer/
-├── README.md                    ← You are here
-├── requirements.txt             ← Python dependencies
-├── data/
-│   ├── generate_data.py         ← Creates 5,000 mock expense rows
-│   ├── expenses.csv             ← Generated dataset (CSV)
-│   ├── expenses.json            ← Generated dataset (JSON)
-│   ├── employees.csv            ← Employee master data
-│   └── northstar.db             ← SQLite database
-├── etl/
-│   ├── etl_pipeline.py          ← Extract, Transform, Load pipeline
-│   └── analysis_queries.sql     ← 5 SQL Window Function queries
-├── notebooks/
-│   └── EDA.ipynb                ← Exploratory Data Analysis
-├── dashboard/
-│   ├── dax_measures.md          ← All DAX formulas + explanations
-│   ├── powerbi_guide.md         ← Step-by-step build guide
-│   └── screenshots/             ← Dashboard PNG exports
-├── automation/
-│   ├── automation_flow.py       ← Power Automate mock pipeline
-│   ├── flow_design.md           ← Maps Python → Power Automate
-│   └── demo_results.json        ← Sample pipeline output
-├── diagrams/
-│   ├── as_is_process_flow.png   ← Current workflow (12 steps)
-│   ├── to_be_process_flow.png   ← Automated workflow (5 steps)
-│   ├── architecture_diagram.png ← Solution architecture
-│   └── generate_diagrams.py     ← Regenerate all diagrams
-├── proposal/
-│   ├── ROI_deck.pptx            ← 10-slide consulting deck
-│   ├── roi_calculation.xlsx     ← ROI model with formulas
-│   ├── bottleneck_table.xlsx    ← Time-motion analysis
-│   ├── problem_statement.pdf    ← 1-page problem statement
-│   └── architecture_diagram.png ← Solution overview
-└── docs/
-    └── process_mapping.md       ← Detailed AS-IS documentation
+```mermaid
+flowchart LR
+    Client["Expense client"] --> N8N["n8n orchestration"]
+    MCP["MCP client"] --> API["FastAPI domain layer"]
+    MCP -->|"controlled writes"| N8N
+    N8N --> API
+    API --> Context["Governed context"]
+    API --> Engine["Deterministic engines"]
+    Context --> PG[("PostgreSQL")]
+    Engine --> PG
+    PG --> Outbox["Outbox / recovery"]
+    Outbox --> N8N
+    N8N --> Human["Durable HITL"]
+    PG --> Views["Observability views"]
+    Views --> MB["Metabase read-only"]
 ```
 
-## 🚀 Quick Start
+The release stack uses separate `northstar`, `n8n_app`, and `metabase_app` databases and principals. See [final architecture](docs/architecture/FINAL_ARCHITECTURE.md), [ADRs](docs/adr), and [security boundaries](docs/SECURITY_BOUNDARIES.md).
 
-### Prerequisites
-- Python 3.10+
-- Power BI Desktop (free) — for dashboard only
+## Engineering properties
 
-### Setup & Run
+- Deterministic validation, anomaly detection, risk classification, and approval routing; no LLM decides financial policy.
+- PostgreSQL transactions, idempotency, correlation, immutable human decisions, and durable n8n Wait/resume.
+- Transactional outbox with leasing, bounded retries, delivery attempts, dead-letter/replay, and reconciliation. Delivery is explicitly at least once.
+- Versioned policy/business-term ownership, certification, freshness and engine binding. Unsafe context causes abstention before a decision is persisted.
+- Canonical provenance snapshots and references with hash verification and lineage APIs.
+- Versioned deterministic evaluation data and baselines.
+- Official MCP Python SDK v2 provider: 12 tools, five resource templates, one prompt; stdio is primary and HTTP is loopback-only.
+- Metabase OSS 0.63.2.7: 36 source-controlled questions across five dashboards, reading only approved `observability.*` views.
 
-```bash
-# 1. Clone the repository
-git clone https://github.com/tusharg007/northstar-workload-optimizer.git
-cd northstar-workload-optimizer
+## Verified evaluation evidence
 
-# 2. Install dependencies
-pip install -r requirements.txt
+- Gate 5: 37 benchmark cases; unsafe action rate `0/7`; provenance verification `23/23`.
+- MCP: FAST `17/17`; PostgreSQL+n8n stdio `16/16`.
+- Gate 7 baseline: SQLite `113 passed, 13 skipped`; PostgreSQL `125 passed, 1 skipped`.
 
-# 3. Generate mock data (5,000 records)
-python data/generate_data.py
+These are deterministic release-baseline results, not claims of production security or exactly-once delivery.
 
-# 4. Run ETL pipeline (clean → validate → load to SQLite)
-python etl/etl_pipeline.py
+## Quick start: reproducible stack
 
-# 5. Run automation demo (5 sample expenses)
-python automation/automation_flow.py
+Prerequisites: Docker Desktop with Compose, Git, and Python 3.13.9. PowerShell is the verified Windows shell.
 
-# 6. Generate diagrams
-python diagrams/generate_diagrams.py
+```powershell
+git clone <repository-url>
+Set-Location northstar-workload-optimizer
+Copy-Item .env.example .env
+# Edit .env and replace every change-me value with disposable local secrets.
+
+python -m venv .venv  # use a Python 3.13.9 executable
+.\.venv\Scripts\python.exe -m pip install uv==0.12.3
+.\.venv\Scripts\uv.exe pip sync --python .\.venv\Scripts\python.exe --require-hashes requirements.lock
+
+.\scripts\stack.ps1 up
+.\scripts\stack.ps1 verify
 ```
 
-## 🔧 Technical Deep Dive
+Endpoints are loopback-only by default:
 
-### Phase 1: Process Mapping & Discovery
-- Mapped 12-step AS-IS workflow with swim lanes
-- Identified 3 critical bottlenecks via time-motion study
-- Quantified $620K annual cost baseline
+- FastAPI: `http://127.0.0.1:8000/docs`
+- n8n: `http://127.0.0.1:5679`
+- Metabase: `http://127.0.0.1:3000`
+- PostgreSQL debugging: `127.0.0.1:55432`
 
-### Phase 2: Data Engineering (Python ETL)
-- **generate_data.py** — Faker + NumPy with log-normal distributions, 5% anomaly injection
-- **etl_pipeline.py** — Validation → Cleaning → Feature Engineering → Deduplication → SQLite load
-- **analysis_queries.sql** — Window functions: `SUM() OVER`, `RANK()`, `LAG()`, `AVG() ROWS BETWEEN`, `PERCENT_RANK()`
+Stop without deleting durable demo volumes:
 
-### Phase 3: Power BI Dashboard
-- 5 KPI cards (Total Expenses YTD, Avg Approval Lag, Anomaly Rate, Policy Compliance, MoM Growth)
-- 4 dashboard pages: Executive Summary, Department Deep Dive, Anomaly Detection, Approval Pipeline
-- 7 DAX measures with conditional formatting
+```powershell
+.\scripts\stack.ps1 down
+```
 
-### Phase 4: Automation (Power Automate Mock)
-- Pydantic-validated expense submission model
-- 5-rule anomaly detection engine (z-score, weekend, round amounts, missing receipt, duplicates)
-- Tiered approval routing ($500 → Manager, $2K → Director, $5K+ → VP)
-- Teams/Outlook notification payload generator
+Do not expose this stack to an untrusted network. Read [security boundaries](docs/SECURITY_BOUNDARIES.md) first.
 
-### Phase 5: ROI & Consulting Deliverables
-- 10-slide executive deck with embedded diagrams
-- Excel ROI model with formulas (not hardcoded) + 3 scenarios
-- $434K savings | 865% ROI | 1.2-month payback
+## Local/manual mode
 
-## 💼 Skills Demonstrated
+Docker is additive: SQLite tests, local FastAPI, local n8n, and MCP stdio remain usable. The detailed Windows sequence is in [DEMO.md](DEMO.md). Use the official SDK Inspector during development:
 
-| Skill Area | Technologies |
-|---|---|
-| **Digital Strategy & Discovery** | Process mapping, bottleneck analysis, benchmarking |
-| **Process Reengineering** | AS-IS/TO-BE flows, swim lanes, time-motion study |
-| **Data Engineering** | Python, Pandas, NumPy, SQLite, ETL pipelines |
-| **SQL Analytics** | Window functions (RANK, LAG, LEAD, running totals) |
-| **Business Intelligence** | Power BI, DAX, Power Query M, KPI dashboards |
-| **Automation** | Power Automate design, Pydantic validation, JSON APIs |
-| **Consulting Delivery** | ROI analysis, risk registers, implementation roadmaps |
+```powershell
+$env:UV_CACHE_DIR="$PWD\.tmp\uv-cache"
+.\.venv\Scripts\uv.exe run mcp dev mcp_server\server.py
+```
 
-## 📄 License
+## Tests and release checks
 
-This project is licensed under the MIT License.
+```powershell
+# Full non-live local mirror: lock, compile, pip, validators, SQLite, Gate 5 FAST, MCP FAST
+.\.venv\Scripts\python.exe scripts\release_check.py
 
----
+# Individual suites
+.\.venv\Scripts\python.exe -m pytest -q
+.\.venv\Scripts\python.exe -m scripts.run_evals --profile fast
+.\.venv\Scripts\python.exe -m scripts.run_mcp_evals --profile fast
 
-*Built as a portfolio project demonstrating Technology Strategy & Transformation capabilities.*
+# Live stack inventory + suspicious expense + approval + Wait/outbox/provenance
+.\scripts\stack.ps1 verify
+```
 
-## North Star Automation v2
+The primary CI workflow runs static, SQLite, PostgreSQL 16.14, and Docker build/config jobs. A manual integration workflow starts the full Compose stack and runs live MCP/Metabase checks.
 
-The functional local demo adds a small vertical automation path while preserving
-the existing analytics assets:
+## Demo and design documentation
 
-- **n8n** owns workflow orchestration and the intake/approval webhooks.
-- A real n8n **Wait/resume** execution owns the durable human workflow
-  lifecycle, while PostgreSQL remains the source of financial truth.
-- **FastAPI** exposes the existing Python expense validation, anomaly, routing,
-  and notification logic as a domain service.
-- **SQLite** stores durable demo runtime state in `data/northstar_runtime.db`,
-  separate from the ETL-managed analytical database.
-- The official stable v2 Python **MCP** SDK and its `MCPServer` API expose
-  submit, status, pending approval, explanation, and approval tools without
-  requiring an LLM in the service itself.
-- The existing **ETL and Power BI** assets remain the analytics layer.
-- A scheduled approval SLA monitor emits deduplicated reminder, overdue, and
-  escalation notifications through a configurable local HTTP adapter.
-- A PostgreSQL transactional outbox provides leased at-least-once resume and
-  notification delivery, immutable attempt history, dead-letter replay,
-  reconciliation, and sanitized n8n Error Trigger incident capture.
-- The **North Star Governed Context Registry** provides versioned business
-  terms, certified policy/rule metadata, ownership, provenance, deterministic
-  content hashes, effective-time resolution, and trust/freshness.
-- **Immutable decision provenance** binds trusted governed policy to the Python
-  execution manifest before processing, safely abstains on context drift, and
-  records deterministic policy, term, rule, trust, risk, and later human
-  evidence with verifiable hashes.
-- A source-controlled **deterministic evaluation harness** release-gates 37
-  curated cases across decision, risk, context safety, provenance, historical
-  context, idempotency, and reliability. It uses exact ground truth, strict
-  thresholds, SQLite/PostgreSQL/LIVE profiles, and no LLM judge.
-- An optional **read-only Metabase observability plane** provides exactly five
-  source-controlled operator dashboards over nine sanitized PostgreSQL views.
-  A dedicated principal can select only those views; Metabase is outside the
-  FastAPI and n8n write path.
-- The **North Star Governed Context MCP Server** exposes 12 typed tools, five
-  read-only resource templates, and one optional investigation prompt using the
-  official MCP Python SDK 2.0.0. Reads expose minimized governed facts;
-  consequential writes retain the public n8n/FastAPI/HITL path. Stdio is the
-  default transport and Streamable HTTP is restricted to localhost demos.
+- [Five-minute demo and technical talk track](docs/DEMO_SCRIPT.md)
+- [Gate 9 release design](docs/architecture/G9_REPRODUCIBLE_RELEASE.md)
+- [Final architecture](docs/architecture/FINAL_ARCHITECTURE.md)
+- [Security boundaries](docs/SECURITY_BOUNDARIES.md)
+- [Coding-agent invariants](AGENTS.md)
+- [Gate history](docs/architecture)
 
-See [DEMO.md](DEMO.md) for the shortest Windows setup, import steps, commands,
-and five-minute interview sequence. Gate 3A design and runtime proof are in
-[docs/architecture/G3A_DURABLE_HITL_SLA.md](docs/architecture/G3A_DURABLE_HITL_SLA.md).
-Gate 4A design and verification are in
-[docs/architecture/G4A_GOVERNED_CONTEXT_REGISTRY.md](docs/architecture/G4A_GOVERNED_CONTEXT_REGISTRY.md).
-Gate 4B design and PostgreSQL/live verification are in
-[docs/architecture/G4B_DECISION_PROVENANCE.md](docs/architecture/G4B_DECISION_PROVENANCE.md).
-Gate 5 commands and verified benchmark evidence are in
-[evals/README.md](evals/README.md) and
-[docs/architecture/G5_EVALUATION_HARNESS.md](docs/architecture/G5_EVALUATION_HARNESS.md).
-Gate 6 setup, security boundaries, dashboard inventory, and verification are in
-[metabase/README.md](metabase/README.md) and
-[docs/architecture/G6_METABASE_OBSERVABILITY.md](docs/architecture/G6_METABASE_OBSERVABILITY.md).
-Gate 7 contracts, security boundaries, transports, and deterministic MCP
-benchmark evidence are in
-[docs/architecture/G7_GOVERNED_MCP_PROVIDER.md](docs/architecture/G7_GOVERNED_MCP_PROVIDER.md).
+Voice, production identity/RBAC, remote MCP authentication, TLS, production secret management, HA/backups, and real notification providers are intentionally outside this release.

@@ -98,10 +98,12 @@ image line `metabase/metabase:v0.63.2.x`, image digest
 `sha256:095503d38b0048c1e7b499509d04ffb7b9999167872199a34bb7b73c5913fb9d`,
 and official JAR SHA-256
 `dc719b2dce60e0fae8d351dc0d44a59f0da696245f10bfb2882aa20c0506c858`.
-The verified Windows host runs the JAR on pinned Temurin Java 21 because Docker
-Desktop corrupted the official image layers during a disk-full ingest. A
-Metabase upgrade must reverify setup, collection/card/dashboard payloads, every
-query, idempotency, restart persistence, and permissions.
+Gate 9's derived runtime keeps that exact application image/JAR and replaces
+only its published zero-length JDK tree with Temurin Java 21 from the official
+`v0.61.2.x` image pinned at
+`sha256:bd846162f7cdf81e8160917bdff6831733db129a1d38c9c9e872db93f90d489f`.
+A Metabase or JDK upgrade must reverify setup, collection/card/dashboard
+payloads, every query, idempotency, restart persistence, and permissions.
 
 ## Dashboard designs
 

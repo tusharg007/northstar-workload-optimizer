@@ -1,0 +1,104 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: 3.13.9
+  UV_VERSION: 0.12.3
+
+jobs:
+  static:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+      - run: uv pip install --system --require-hashes -r requirements.lock
+      - run: python scripts/validate_dependency_lock.py
+      - run: python -m compileall -q app automation context evals mcp_server metabase scripts tests
+      - run: python -m pip check
+      - run: python scripts/validate_n8n_workflows.py
+      - run: python scripts/validate_mcp_server.py
+      - run: python -m metabase.validate
+      - run: python -m alembic upgrade head
+      - run: git diff --exit-code
+
+  sqlite:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+      - run: uv pip install --system --require-hashes -r requirements.lock
+      - run: python -m pytest -q
+      - run: python -m scripts.run_evals --profile fast
+      - run: python -m scripts.run_mcp_evals --profile fast
+
+  postgresql:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16.14
+        env:
+          POSTGRES_USER: northstar
+          POSTGRES_PASSWORD: northstar-ci
+          POSTGRES_DB: northstar
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U northstar -d northstar"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 30
+    env:
+      NORTHSTAR_DATABASE_URL: postgresql+psycopg://northstar:northstar-ci@127.0.0.1:5432/northstar
+      NORTHSTAR_TEST_POSTGRES_URL: postgresql+psycopg://northstar:northstar-ci@127.0.0.1:5432/northstar
+      NORTHSTAR_EVAL_POSTGRES_URL: postgresql+psycopg://northstar:northstar-ci@127.0.0.1:5432/northstar
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+      - run: uv pip install --system --require-hashes -r requirements.lock
+      - run: python -m alembic upgrade head
+      - run: python scripts/seed_context_registry.py --write
+      - run: python -m pytest -q
+      - run: python -m scripts.run_evals --profile postgres
+
+  docker:
+    runs-on: ubuntu-latest
+    env:
+      NORTHSTAR_POSTGRES_ADMIN_PASSWORD: ci-admin-password
+      NORTHSTAR_APP_DB_PASSWORD: ci-app-password
+      N8N_DB_PASSWORD: ci-n8n-password
+      METABASE_APP_DB_PASSWORD: ci-metabase-password
+      NORTHSTAR_METABASE_DB_PASSWORD: ci-readonly-password
+      N8N_ENCRYPTION_KEY: ci-n8n-encryption-key-at-least-32-characters
+      METABASE_ENCRYPTION_SECRET_KEY: ci-metabase-encryption-key
+      METABASE_ADMIN_PASSWORD: ci-metabase-admin-password
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -f infra/docker/Dockerfile.app -t northstar-app:ci .
+      - run: docker compose config --quiet
