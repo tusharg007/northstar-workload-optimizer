@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
-      METABASE_ADMIN_PASSWORD: integration-metabase-admin
+      METABASE_ADMIN_PASSWORD: Ns9-V4k2-R8q7-X5m3-T6p1
       NORTHSTAR_API_BASE_URL: http://127.0.0.1:8000
       N8N_EXPENSE_WEBHOOK_URL: http://127.0.0.1:5679/webhook/northstar-expense
       N8N_APPROVAL_WEBHOOK_URL: http://127.0.0.1:5679/webhook/northstar-approval
@@ -33,11 +33,14 @@ jobs:
       - name: Configure disposable credentials
         run: |
           cp .env.example .env
-          sed -i 's/change-me-metabase-admin-password/integration-metabase-admin/' .env
+          sed -i 's/change-me-metabase-admin-password/Ns9-V4k2-R8q7-X5m3-T6p1/' .env
       - name: Start complete stack
         run: docker compose -p northstar-g9-ci up --build -d
       - name: Wait for Metabase bootstrap
-        run: docker compose -p northstar-g9-ci wait metabase-bootstrap
+        run: |
+          bootstrap_id="$(docker compose -p northstar-g9-ci ps --all --quiet metabase-bootstrap)"
+          test -n "$bootstrap_id"
+          test "$(docker wait "$bootstrap_id")" = "0"
       - name: Verify stack and smoke
         run: python scripts/verify_stack.py --project northstar-g9-ci --wait-seconds 600
       - name: MCP stdio integration
