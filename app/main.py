@@ -11,6 +11,8 @@ from typing import Annotated, Literal
 from fastapi import FastAPI, Header, HTTPException, Query, Response
 from pydantic import AnyHttpUrl, BaseModel, Field
 
+from fastapi.middleware.cors import CORSMiddleware
+
 from automation.automation_flow import AutomationPipeline, ExpenseSubmission
 from app.db.repositories import (
     DecisionConflictError,
@@ -125,6 +127,17 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
     resolved_db = db_path or os.getenv("NORTHSTAR_DATABASE_URL", DEFAULT_DATABASE_URL)
     store = RuntimeStore(resolved_db)
     application = FastAPI(title="North Star Expense Service", version="2.0.0")
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=[
+            "http://127.0.0.1:5173",
+            "http://localhost:5173",
+            "http://127.0.0.1:80",
+            "http://localhost:80",
+        ],
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
     application.state.store = store
 
     @application.get("/health")

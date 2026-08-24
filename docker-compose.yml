@@ -217,6 +217,25 @@ services:
     restart: "no"
     networks: [northstar_private]
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+      n8n:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${NORTHSTAR_FRONTEND_PORT:-5173}:80"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:80/"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [northstar_private]
+
 networks:
   northstar_private:
     driver: bridge
