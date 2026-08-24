@@ -14,19 +14,19 @@ import {
   Copy,
   Check
 } from 'lucide-react';
-import { 
-  getExpense, 
-  getExplanation, 
-  getLineage, 
-  getProvenance, 
-  verifyProvenance 
+import {
+  getExpense,
+  getExplanation,
+  getLineage,
+  getProvenance,
+  verifyProvenance
 } from '../lib/api';
-import type { 
-  ExpenseState, 
-  Explanation, 
-  Lineage, 
-  ProvenanceView, 
-  VerifyResult 
+import type {
+  ExpenseState,
+  Explanation,
+  Lineage,
+  ProvenanceView,
+  VerifyResult
 } from '../types';
 import { STATUS_COLORS, RISK_COLORS } from '../types';
 import { formatCurrency, formatDate, formatDateTime, humanizeStatus, cn } from '../lib/utils';
@@ -34,14 +34,14 @@ import { formatCurrency, formatDate, formatDateTime, humanizeStatus, cn } from '
 export default function ExpenseDetail() {
   const { id } = useParams<{ id: string }>();
   const [activeTab, setActiveTab] = useState<'overview' | 'lineage' | 'provenance'>('overview');
-  
+
   const [expense, setExpense] = useState<ExpenseState | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
-    
+
     const fetchBase = async () => {
       try {
         setLoading(true);
@@ -53,7 +53,7 @@ export default function ExpenseDetail() {
         setLoading(false);
       }
     };
-    
+
     fetchBase();
   }, [id]);
 
@@ -210,19 +210,19 @@ function OverviewTab({ id, expense }: { id: string, expense: ExpenseState }) {
             <div className="flex items-center gap-4">
               <div className="w-32 text-sm text-gray-500 font-medium">Risk Score</div>
               <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
-                <div 
+                <div
                   className={cn(
-                    "h-full", 
-                    anomaly.confidence_score > 0.8 ? "bg-red-500" : 
-                    anomaly.confidence_score > 0.5 ? "bg-orange-400" : 
+                    "h-full",
+                    anomaly.confidence_score > 0.8 ? "bg-red-500" :
+                    anomaly.confidence_score > 0.5 ? "bg-orange-400" :
                     "bg-green-500"
-                  )} 
+                  )}
                   style={{ width: `${Math.min(100, Math.max(0, anomaly.confidence_score * 100))}%` }}
                 />
               </div>
               <div className="w-12 text-right text-sm font-medium">{Math.round(anomaly.confidence_score * 100)}%</div>
             </div>
-            
+
             {anomaly.flags && anomaly.flags.length > 0 ? (
               <div>
                 <div className="text-sm text-gray-500 font-medium mb-2">Detected Anomalies:</div>
@@ -263,7 +263,7 @@ function OverviewTab({ id, expense }: { id: string, expense: ExpenseState }) {
                 <span className="text-gray-900">{decision.reason}</span>
               </div>
             </div>
-            
+
             {expense.decided_by && (
               <div className="mt-4 pt-4 border-t border-gray-200 grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -453,7 +453,7 @@ function ProvenanceTab({ id }: { id: string }) {
               {verifyResult.status === 'PASS' ? 'Integrity Verified ✓' : 'Integrity Verification Failed ✗'}
             </h4>
             <p className="text-sm opacity-90 mb-2">
-              {verifyResult.status === 'PASS' 
+              {verifyResult.status === 'PASS'
                 ? 'The cryptographic hash matches the original computation. No tampering detected.'
                 : 'The recomputed hash does not match the stored hash. The record may have been tampered with or is missing data.'}
             </p>

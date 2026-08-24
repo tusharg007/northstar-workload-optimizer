@@ -20,7 +20,7 @@ const StatusBadge = ({ status }: { status: string }) => {
     RETIRED: 'bg-amber-100 text-amber-800 border-amber-200',
   };
   const color = colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800';
-  
+
   return (
     <span className={`px-2 py-1 text-xs font-medium border rounded-full ${color}`}>
       {status}
@@ -36,7 +36,7 @@ export default function ContextExplorer() {
 
   const [expandedPolicy, setExpandedPolicy] = useState<string | null>(null);
   const [policyVersions, setPolicyVersions] = useState<Record<string, PolicyVersion[]>>({});
-  
+
   const [expandedTerm, setExpandedTerm] = useState<string | null>(null);
   const [termVersions, setTermVersions] = useState<Record<string, TermVersion[]>>({});
 
@@ -133,7 +133,7 @@ export default function ContextExplorer() {
       <div className="space-y-4">
         {activeTab === 'policies' && policies.map(policy => (
           <div key={policy.policy_key} className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
-            <div 
+            <div
               className="p-4 cursor-pointer hover:bg-gray-50 flex items-center justify-between"
               onClick={() => togglePolicy(policy.policy_key)}
             >
@@ -183,7 +183,7 @@ export default function ContextExplorer() {
                             </div>
                           </div>
                         </div>
-                        
+
                         <div className="mt-4">
                           <h5 className="text-sm font-medium text-gray-900 mb-2 border-b pb-1">Rules</h5>
                           <div className="space-y-3">
@@ -214,7 +214,7 @@ export default function ContextExplorer() {
 
         {activeTab === 'terms' && terms.map(term => (
           <div key={term.term_key} className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
-            <div 
+            <div
               className="p-4 cursor-pointer hover:bg-gray-50 flex items-center justify-between"
               onClick={() => toggleTerm(term.term_key)}
             >

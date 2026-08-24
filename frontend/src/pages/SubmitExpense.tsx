@@ -40,7 +40,7 @@ export default function SubmitExpense() {
     const randomSuffix = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
     let data: ExpenseSubmission;
     const today = new Date();
-    
+
     if (preset === 'coffee') {
       data = {
         expense_id: `DEMO-COFFEE-${randomSuffix}`,
@@ -296,7 +296,7 @@ export default function SubmitExpense() {
               </label>
             </div>
           </div>
-          
+
           <div className="flex justify-end">
             <button
               type="submit"
@@ -375,7 +375,7 @@ export default function SubmitExpense() {
               >
                 Submit Another
               </button>
-              
+
               <Link
                 to={`/expenses/${result.expense_id}`}
                 className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700"

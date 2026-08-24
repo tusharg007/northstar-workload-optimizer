@@ -114,7 +114,7 @@ function ApprovalCard({ expense, onDecided }: { expense: ExpenseState, onDecided
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden transition-all">
-      <div 
+      <div
         className="p-5 cursor-pointer hover:bg-gray-50 flex items-center justify-between"
         onClick={() => setExpanded(!expanded)}
       >
@@ -129,7 +129,7 @@ function ApprovalCard({ expense, onDecided }: { expense: ExpenseState, onDecided
             </span>
             <span className="text-sm text-gray-500 font-mono">{expense.expense_id.substring(0, 8)}...</span>
           </div>
-          
+
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-3">
             <div>
               <p className="text-sm text-gray-500">Employee</p>
@@ -151,7 +151,7 @@ function ApprovalCard({ expense, onDecided }: { expense: ExpenseState, onDecided
               <p className="font-medium text-gray-900">{formatDate(p.transaction_date)}</p>
             </div>
           </div>
-          
+
           {expense.anomaly_flags && expense.anomaly_flags.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-2">
               {expense.anomaly_flags.map((flag, idx) => (

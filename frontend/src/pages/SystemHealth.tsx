@@ -196,7 +196,7 @@ export default function SystemHealth() {
           </div>
           <div className="p-6">
             <p className="text-gray-700 leading-relaxed mb-4">
-              North Star is a governed expense-operations platform with deterministic policy execution, 
+              North Star is a governed expense-operations platform with deterministic policy execution,
               durable n8n workflows, PostgreSQL persistence, decision provenance, and MCP interfaces.
             </p>
             <div className="space-y-3 mt-6">
