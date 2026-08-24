@@ -1,279 +1,569 @@
-# North Star Workload Optimizer
+# North Star — Governed Expense Operations Platform
 
-**A governed expense-operations system for decisions that must be explainable, reproducible, and recoverable.**
+> **A governance-first expense automation reference implementation demonstrating deterministic policy enforcement, durable n8n orchestration, human-in-the-loop approvals, immutable decision provenance, and a full React operations dashboard.**
 
 [![CI](https://github.com/tusharg007/northstar-workload-optimizer/actions/workflows/ci.yml/badge.svg)](https://github.com/tusharg007/northstar-workload-optimizer/actions/workflows/ci.yml)
 ![Python 3.13](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)
-![PostgreSQL 16](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
-![n8n 2.22.6](https://img.shields.io/badge/n8n-2.22.6-EA4B71?logo=n8n&logoColor=white)
-![Docker Compose](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
+![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
+![n8n](https://img.shields.io/badge/n8n-2.22.6-EA4B71?logo=n8n&logoColor=white)
 [![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-North Star separates deterministic financial policy from workflow orchestration and AI-facing interfaces. n8n coordinates long-running work and human approval; FastAPI and versioned Python logic own decisions; PostgreSQL preserves operational truth, recovery state, governed context, and immutable evidence; Metabase observes through a read-only boundary; and MCP exposes trusted reads and controlled actions without becoming a policy authority.
+---
 
-## Why I built North Star
+## Table of Contents
 
-Most workflow demos end when a request reaches an approver. I wanted to explore the harder problems that appear after the happy path: What happens when policy meaning changes while a workflow is running? What happens when a human decision takes hours? What happens when a retry follows a partial failure? And if an AI client invokes the system, how can it access useful context without becoming the authority for financial policy?
+- [What This Is](#what-this-is)
+- [Architecture](#architecture)
+- [System in Action](#system-in-action)
+- [Tech Stack](#tech-stack)
+- [Project Structure](#project-structure)
+- [Quick Start](#quick-start)
+- [Services & Ports](#services--ports)
+- [Frontend Pages](#frontend-pages)
+- [n8n Workflows](#n8n-workflows)
+- [API Reference](#api-reference)
+- [Demo Flow](#demo-flow)
+- [Development](#development)
+- [Verification](#verification)
+- [Environment Variables](#environment-variables)
+- [Design Principles](#design-principles)
+- [Scope and Security](#scope-and-security)
 
-North Star became my attempt to design that boundary properly.
+---
 
-The central thesis is simple: **automation should act on a policy-dependent decision only when it can establish that the governing context is authoritative.** The system therefore combines versioned context, deterministic decisions, durable orchestration, failure recovery, immutable evidence, evaluation, observability, and a controlled MCP interface.
+## What This Is
 
-## The core problem
+North Star is a full-stack expense approval automation reference system built to demonstrate:
 
-Expense automation is deceptively difficult:
+- **Deterministic policy enforcement** — FastAPI owns all validation, risk scoring, and routing. No LLM decides financial outcomes.
+- **Durable workflow orchestration** — n8n manages multi-step approval workflows with real `Wait` nodes (not polling loops).
+- **Human-in-the-loop approvals** — Escalated expenses wait indefinitely until a human approves or rejects via the UI.
+- **Immutable provenance** — Every automated decision is cryptographically hashed and independently verifiable.
+- **Governed context** — Expense decisions reference versioned, certified policy documents and business terms.
+- **Full React UI** — Operations dashboard turns a 15-terminal-command system into a 1-command, click-driven demo.
 
-- Policy meaning can drift while a request is in flight.
-- Business definitions need accountable owners, certification, effective dates, and freshness evidence.
-- Human approvals must survive process and workflow-engine restarts.
-- Retried effects can create duplicate notifications or resumes.
-- Operators need to see failures and recovery state without gaining a new write path.
-- A decision must remain explainable after the current policy has changed.
-- AI clients need useful context but must not silently become financial-policy authorities.
-
-North Star treats these as system invariants rather than edge cases.
-
-## Design principles
-
-**Context before action.** Policy-dependent processing abstains when authoritative context cannot be proven.
-
-**Deterministic financial policy.** LLMs do not determine approval policy, risk classification, routing, or financial outcomes.
-
-**Orchestration is not domain logic.** n8n owns visible workflow coordination; FastAPI and Python own deterministic behavior.
-
-**PostgreSQL is durable truth.** Operational state, approvals, outbox events, governed context, and provenance are persisted transactionally.
-
-**Failures are part of the design.** At-least-once delivery, idempotency, leases, retries, dead-letter/replay, and reconciliation are explicit.
-
-**Evidence survives policy change.** Provenance records the context, rules, trust signals, risk evidence, engine versions, and human action used at decision time.
-
-**AI gets a governed interface.** MCP exposes minimized trusted reads and controlled actions while preserving n8n, FastAPI, PostgreSQL, and human-approval boundaries.
+---
 
 ## Architecture
 
-```mermaid
-flowchart TD
-    Clients["Expense clients / operators"] --> N8N["n8n control plane"]
-    MCP["MCP clients"] -->|"controlled writes"| N8N
-    MCP -->|"bounded governed reads"| API["FastAPI domain layer"]
-    N8N --> API
-
-    API --> Context["Governed context registry"]
-    API --> Engines["Deterministic policy, risk, and routing"]
-    Context --> PG[("PostgreSQL operational truth")]
-    Engines --> PG
-    API --> PG
-
-    PG --> Provenance["Immutable decision provenance"]
-    PG --> Outbox["Transactional outbox"]
-    PG --> Approval["Durable approval state"]
-    Outbox --> N8N
-    Approval --> N8N
-    N8N --> Human["Human approval / HITL"]
-
-    PG --> Views["Approved observability views"]
-    Views --> Metabase["Metabase — read only"]
+```
+┌──────────────────────────────────────────────────────────────┐
+│                    React Frontend (nginx)                      │
+│              http://localhost:5173                             │
+│  Dashboard · Submit · Approvals · Detail · Context · Health   │
+└─────────────────┬──────────────────────┬─────────────────────┘
+                  │ /api/*               │ /webhook/*
+                  ▼                      ▼
+┌─────────────────────┐    ┌──────────────────────────────────┐
+│   FastAPI (Python)  │◄───│         n8n Workflows             │
+│   localhost:8000    │    │         localhost:5679            │
+│                     │    │                                  │
+│ • Validation        │    │  01 Expense Intake               │
+│ • Risk scoring      │    │  02 Approval Decision            │
+│ • Policy engine     │    │  10 Process Expense Service      │
+│ • Provenance        │    │  20 Approval Orchestrator (WAIT) │
+│ • Context registry  │    │  23 Reliability Dispatcher       │
+│ • HITL decisions    │    │  + 5 supporting workflows        │
+└─────────┬───────────┘    └──────────────────────────────────┘
+          │
+          ▼
+┌─────────────────────┐    ┌──────────────────────────────────┐
+│    PostgreSQL        │    │          Metabase                │
+│    localhost:55432   │    │          localhost:3000          │
+│                      │    │                                  │
+│ • northstar (app)    │    │  36 questions, 5 dashboards      │
+│ • n8n_app           │    │  read-only observability views   │
+│ • metabase_app      │    └──────────────────────────────────┘
+└─────────────────────┘
 ```
 
-MCP is not a second orchestrator. Consequential calls follow `MCP → n8n → FastAPI → PostgreSQL/HITL`. Metabase is not in the transaction path and cannot mutate operational data.
+### Data Flow for an Expense
 
-## What makes it interesting
+```
+User submits via UI
+      ↓
+POST /webhook/northstar-expense   (n8n Workflow 01)
+      ↓
+Normalize → Build Context → Call FastAPI policy engine
+      ↓
+FastAPI validates + scores risk + determines routing
+      ↓
+If AUTO_APPROVED → persist + notify → respond
+If ESCALATED/PENDING → n8n Workflow 20 starts, reaches WAIT node
+      ↓
+Expense appears in UI Approvals inbox
+      ↓
+Human clicks Approve/Reject → POST /webhook/northstar-approval
+      ↓
+n8n Workflow 02 records decision → resumes SAME Workflow 20 execution
+      ↓
+Workflow 20 continues → marks completed → sends notification
+      ↓
+Dashboard row updates to APPROVED, provenance hash verifiable
+```
 
-| Engineering problem | North Star design response |
+---
+
+## System in Action
+
+| Governed context and service health | Decision trace and risk evidence |
 |---|---|
-| Policy drift | Versioned governed context with ownership, effective-time resolution, certification, and trust |
-| Unsafe or missing context | Deterministic abstention before decision persistence |
-| Long-running approval | Durable n8n Wait plus PostgreSQL approval/orchestration state |
-| Crash window between commit and external effect | Transactional outbox |
-| Retry duplicates | Canonical request idempotency and stable delivery keys |
-| Failed delivery | Leases, bounded retry, delivery attempts, DLQ/replay, and reconciliation |
-| Historical explainability | Immutable provenance snapshots, references, and deterministic hashes |
-| AI/client integration | Governed MCP resources/tools with n8n-routed writes |
-| Operator visibility | Read-only Metabase views and dashboards |
-| Regression confidence | Versioned deterministic evaluation harness with exact metrics |
-| Reproducibility | Hash-locked dependencies, Docker Compose bootstrap, and CI definitions |
+| ![Governed context and service health](docs/assets/portfolio/governed-context-health.png) | ![Decision trace and risk evidence](docs/assets/portfolio/decision-trace-risk.png) |
 
-## System in action
-
-![Governed context health dashboard showing policy ownership, certification, trust, and freshness](docs/assets/portfolio/governed-context-health.png)
-
-*Governed enterprise context — versioned policies and business terms carry ownership, certification, effective-time semantics, and trust/freshness signals before they can influence decisions.*
-
-![Decision trace dashboard showing deterministic risk signals and persisted policy evidence](docs/assets/portfolio/decision-trace-risk.png)
-
-*Decision provenance and risk evidence — each expense records the governed context, deterministic risk evidence, and policy/rule evidence behind its decision trace. Structural completeness is distinct from cryptographic hash verification.*
-
-![n8n reliability dispatcher showing reconciliation, outbox claiming, branching, and result reporting](docs/assets/portfolio/reliability-dispatcher.png)
-
-*Durable workflow recovery — n8n dispatches transactional-outbox intents through reconciliation, claiming, resume/notification paths, and explicit success/failure reporting while PostgreSQL remains the source of truth.*
-
-The [approval-orchestrator image](docs/assets/portfolio/approval-orchestrator.png) provides a closer interview view of registration, notification, durable Wait, final-state retrieval, and completion.
-
-## Synthetic demo scenario
-
-The verified demonstration uses clearly synthetic data: a **$3,000 Software & Subscriptions** expense with a duplicate-style description, missing receipt, weekend date, and other deterministic signals.
-
-| Stage | Verified result |
+| Reliability dispatcher | Durable approval orchestration |
 |---|---|
-| Automated decision | `ESCALATED` |
-| Risk | `CRITICAL` |
-| Route | `Finance Director + Compliance` |
-| Human decision | `APPROVED` |
-| Provenance verification | `PASS` |
-| Approval-resume outbox | `DELIVERED` |
-| n8n orchestration | `COMPLETED` |
+| ![Reliability dispatcher](docs/assets/portfolio/reliability-dispatcher.png) | ![Durable approval orchestration](docs/assets/portfolio/approval-orchestrator.png) |
 
-This scenario is a deterministic release fixture, not real enterprise expense data.
+---
 
-## Verified engineering evidence
+## Tech Stack
 
-These are exact regression, contract, and release checks—not production model accuracy or real-world ML generalization.
+| Layer | Technology |
+|---|---|
+| **Frontend** | React 18, TypeScript, Vite 6, Tailwind CSS 3, Lucide React, React Router 6 |
+| **API** | FastAPI (Python 3.13), Pydantic v2, Uvicorn |
+| **Orchestration** | n8n 2.22.6 (self-hosted, 10 workflows) |
+| **Database** | PostgreSQL 16, Alembic migrations |
+| **Analytics** | Metabase (36 questions, 5 dashboards) |
+| **MCP Interface** | Official Python MCP SDK 2.0; 12 tools, 5 resources, and 1 prompt; governed reads and n8n-routed writes |
+| **Container** | Docker + Docker Compose, nginx reverse proxy |
+| **Policy Engine** | Deterministic Python rules engine (automation/) |
 
-| Evidence | Verified result |
-|---|---:|
-| SQLite pytest | 122 passed, 13 skipped |
-| PostgreSQL pytest | 134 passed, 1 skipped |
-| Gate 5 FAST benchmark | 37/37 |
-| Gate 5 PostgreSQL benchmark | 37/37 |
-| Unsafe-action rate | 0/7 |
-| Abstention recall / precision | 7/7 · 7/7 |
-| Provenance verification | 23/23 |
-| MCP FAST benchmark | 17/17 |
-| MCP PostgreSQL+n8n stdio | 16/16 |
-| MCP contract | 12 tools · 5 resources · 1 prompt |
-| n8n inventory | 10 workflows |
-| Metabase inventory | 5 dashboards · 36 questions |
-| Fresh Compose bootstrap | PASS |
-| n8n waiting-execution restart persistence | PASS |
-| Whole-stack restart persistence | PASS |
-| Fresh-volume recreation | PASS |
+---
 
-The immutable v1 evaluation dataset covers exact decisions, risk signals, routing, context resolution, abstention, provenance, idempotency, and selected reliability behavior. No LLM judge participates.
+## Project Structure
 
-## Reliability model
+```
+northstar-workload-optimizer/
+├── app/                        # FastAPI application
+│   ├── main.py                 # App factory, all routes
+│   ├── runtime_store.py        # Runtime persistence boundary
+│   ├── reliability.py          # Outbox, retry, and dead-letter behavior
+│   ├── context/                # Governed context registry
+│   ├── provenance/             # Immutable decision provenance
+│   └── db/repositories/        # PostgreSQL repository implementations
+│
+├── automation/                 # Deterministic policy engine
+│   ├── automation_flow.py      # Main processing pipeline
+│   ├── policy_manifest.py      # Policy definitions
+│   └── flow_design.md          # Policy-flow design notes
+│
+├── frontend/                   # React operations dashboard
+│   ├── src/
+│   │   ├── pages/              # Dashboard, Submit, Approvals, Detail, Context, Health
+│   │   ├── layouts/            # DashboardLayout with sidebar
+│   │   ├── lib/                # api.ts (typed client), utils.ts
+│   │   └── types.ts            # TypeScript types matching FastAPI schemas
+│   ├── Dockerfile              # Multi-stage: node build → nginx serve
+│   └── nginx.conf              # Reverse proxy + SPA fallback
+│
+├── n8n/workflows/              # 10 portable workflow definitions
+│   ├── 01_expense_intake.json
+│   ├── 02_approval_decision.json
+│   ├── 10_process_expense_service.json
+│   ├── 20_approval_orchestrator.json
+│   ├── 23_reliability_dispatcher.json
+│   └── ...
+│
+├── mcp_server/                 # MCP interface adapter
+├── metabase/                   # Observability dashboard bootstrap
+├── observability/              # SQL views for Metabase
+├── alembic/                    # Forward-only DB migrations
+├── evals/                      # Immutable eval datasets and runner
+├── tests/                      # Full test suite (122 pass)
+├── scripts/
+│   └── stack.ps1               # One-command stack management
+├── infra/docker/               # Dockerfiles and bootstrap scripts
+├── docker-compose.yml          # Full stack definition
+├── .env                        # Local secrets (not committed)
+└── .env.example                # Template for setup
+```
 
-Business state and external-effect intent commit in one PostgreSQL transaction. Workers reconcile missing intents, claim due events with expiring leases, record each delivery attempt, retry transient failures, and move exhausted work into an explicit replayable dead-letter state.
+---
 
-The delivery guarantee is **at least once**, not exactly once. Stable delivery keys and idempotent consumers/effects make retries safe.
+## Quick Start
 
-## Governed context and provenance
+### Prerequisites
+- Docker Desktop (Windows, WSL2 backend)
+- PowerShell 7+
+- Git
 
-Policy and business-term versions carry accountable ownership, certification, effective intervals, review dates, freshness evidence, and deterministic hashes. Required context is resolved at one effective time and checked against the engine manifest. Missing, conflicted, stale, untrusted, or mismatched context produces a safe abstention before a financial decision is persisted.
-
-Each persisted decision stores canonical context, rule, trust, risk-signal, and engine evidence. References retain navigability; immutable snapshots preserve historical meaning. Human evidence is appended later without rewriting the automated-decision hash.
-
-## MCP boundary
-
-The official MCP Python SDK 2.0.0 provider exposes **12 tools, five resource templates, and one investigation prompt**. stdio is the primary transport; local Streamable HTTP rejects non-loopback bindings.
-
-- Reads expose bounded governed context, expense state, explanations, lineage, decision traces, and provenance verification.
-- Writes preserve `MCP → n8n → FastAPI → PostgreSQL/HITL`.
-- MCP has no direct database access and cannot invoke internal Wait/resume capabilities.
-- HTTP mode is local/demo only because production authentication and MCP OAuth are not implemented.
-
-## Observability
-
-Metabase OSS 0.63.2.7 reconciles **36 source-controlled questions across five dashboards**:
-
-- Operations Overview
-- Approval & SLA
-- Reliability & Recovery
-- Governed Context Health
-- Decision Trace & Risk
-
-Its dedicated PostgreSQL role can select only approved `observability.*` views. Base-table reads and all writes are denied. Dashboards report structural provenance completeness; cryptographic verification remains an application operation.
-
-## Quick start
-
-Prerequisites: Docker Desktop with Compose, Git, and Python 3.13.9. PowerShell is the fully verified local workflow.
+### 1. Clone and configure
 
 ```powershell
-git clone https://github.com/tusharg007/northstar-workload-optimizer.git
-Set-Location northstar-workload-optimizer
+git clone https://github.com/tusharg007/northstar-workload-optimizer
+cd northstar-workload-optimizer
+
+# Copy the env template
 Copy-Item .env.example .env
-# Replace every change-me value with a disposable local secret.
+# Replace every change-me value with disposable local credentials
+```
 
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install uv==0.12.3
-.\.venv\Scripts\uv.exe pip sync --python .\.venv\Scripts\python.exe --require-hashes requirements.lock
+### 2. Launch everything
 
+```powershell
 .\scripts\stack.ps1 up
+```
+
+This single command:
+- Builds the FastAPI app image
+- Builds the React frontend (Vite production build inside Docker)
+- Runs Alembic migrations
+- Seeds governed context (policies, business terms, trust signals)
+- Creates Metabase read-only role
+- Imports and publishes all 10 n8n workflows
+- Starts PostgreSQL, FastAPI, n8n, Metabase, nginx frontend
+
+### 3. Open the dashboard
+
+```
+http://localhost:5173
+```
+
+### 4. Verify the stack
+
+```powershell
 .\scripts\stack.ps1 verify
+
+# Also verify the nginx proxy is routing correctly:
+Invoke-RestMethod http://localhost:5173/health
+Invoke-RestMethod http://localhost:5173/api/expenses
+Invoke-RestMethod http://localhost:5173/api/context/policies
 ```
 
-The stack starts PostgreSQL 16.14, applies migrations and governed-context seed data, starts FastAPI, imports exactly ten n8n workflows, and reconciles five Metabase dashboards and 36 questions. Verification exercises the synthetic suspicious-expense, approval, Wait/resume, outbox, human-evidence, and provenance path.
+---
 
-Loopback endpoints:
+## Services & Ports
 
-- FastAPI: `http://127.0.0.1:8000/docs`
-- n8n: `http://127.0.0.1:5679`
-- Metabase: `http://127.0.0.1:3000`
-- PostgreSQL debugging: `127.0.0.1:55432`
+| Service | URL | Description |
+|---|---|---|
+| **Frontend** | http://localhost:5173 | React dashboard (nginx) |
+| **FastAPI** | http://localhost:8000 | REST API + Swagger docs |
+| **FastAPI Docs** | http://localhost:8000/docs | Interactive API explorer |
+| **n8n** | http://localhost:5679 | Workflow orchestration UI |
+| **Metabase** | http://localhost:3000 | Analytics dashboards |
+| **PostgreSQL** | localhost:55432 | Direct DB access |
 
-Stop without deleting durable demo volumes:
+### Local Credentials
 
-```powershell
-.\scripts\stack.ps1 down
+No usable password is committed. Copy `.env.example` to `.env`, replace every
+`change-me` value, and keep `.env` local. The template supplies local usernames
+and loopback ports; n8n owner credentials are created during first-time setup.
+
+---
+
+## Frontend Pages
+
+### 🏠 Dashboard (`/`)
+- Live metrics: Total, Auto-Approved, Pending Review, Escalated, Approved
+- Filterable expense table with status and risk badges
+- Auto-refreshes every 5 seconds
+- Click any row to open full expense detail
+
+### 📋 Submit Expense (`/submit`)
+- 4 one-click demo presets (see Demo Flow below)
+- Full expense form with all fields
+- Instant result panel showing status, risk level, anomaly flags, routing reason
+- Submission goes through **n8n Workflow 01** (not direct to FastAPI)
+
+### ✅ Approvals (`/approvals`)
+- HITL inbox showing all PENDING_APPROVAL + ESCALATED expenses
+- Expandable review cards with expense details
+- Approve/Reject with approver name and comment
+- Decision goes through **n8n Workflow 02** → resumes **Workflow 20**
+
+### 🔍 Expense Detail (`/expenses/:id`)
+Three tabs:
+- **Overview** — payload details, risk bar, anomaly flags, routing decision, provenance summary
+- **Lineage** — visual timeline of all workflow events
+- **Provenance** — evidence counts (policies, terms, rules, trust, risk), hash display, **Verify Integrity** button
+
+### 📚 Governed Context (`/context`)
+- Browse all certified policies with expandable version history and rule parameters
+- Browse all business terms with definitions and version history
+- Shows owner, domain, certification status for each
+
+### 🩺 System Health (`/health`)
+- FastAPI health status
+- Dead Letter Queue events table
+- Workflow failures monitor
+- Quick links to API docs, n8n, Metabase
+
+---
+
+## n8n Workflows
+
+| ID | Name | Purpose |
+|---|---|---|
+| `northstarExpenseIntake` | 01 Expense Intake | Receives webhook, normalizes, calls FastAPI, launches orchestrator |
+| `northstarApprovalDecision` | 02 Approval Decision | Records human decision, resumes waiting Workflow 20 |
+| `northstarProcessExpenseService` | 10 Process Expense | FastAPI integration — validates, scores, routes |
+| `northstarApprovalOrchestrator` | 20 Approval Orchestrator | **Durable HITL** — waits at `Wait` node until resumed |
+| `northstarReliabilityDispatcher` | 23 Reliability Dispatcher | Polls outbox every 5s, delivers at-least-once |
+| `northstarApprovalNotificationService` | Notification service | Sends approval/rejection notifications |
+| `northstarApprovalSLAMonitor` | SLA Monitor | Escalates overdue approvals |
+| `northstarDeadLetterReplay` | Dead Letter Replay | Retries failed outbox events |
+| `northstarRecordDecisionService` | Record Decision | Persists human decision, creates resume event |
+| `northstarGlobalErrorHandler` | Error Handler | Catches unhandled workflow errors |
+
+---
+
+## API Reference
+
+Full interactive docs at **http://localhost:8000/docs**
+
+### Key endpoints
+
+```
+POST /api/expenses/process          Submit expense directly (bypasses n8n)
+GET  /api/expenses                  List all expenses
+GET  /api/expenses/{id}             Get single expense
+POST /api/expenses/{id}/decision    Submit approval decision directly
+GET  /api/expenses/{id}/explanation Plain-language explanation of decision
+GET  /api/expenses/{id}/lineage     Full event lineage
+GET  /api/provenance/expenses/{id}  Immutable provenance record
+GET  /api/provenance/decisions/{id}/verify  Verify hash integrity
+GET  /api/context/policies          List governed policies
+GET  /api/context/policies/{key}/versions  Policy version history
+GET  /api/context/terms             List business terms
+GET  /health                        Service health check
+
+# n8n webhooks (through nginx at :5173 or directly at :5679)
+POST /webhook/northstar-expense     Primary expense intake (→ Workflow 01)
+POST /webhook/northstar-approval    Approval decision (→ Workflow 02)
 ```
 
-Do not expose this stack to an untrusted network.
+---
 
-## Tests and evaluations
+## Demo Flow
+
+> **Goal:** Show a complete governed expense cycle in under 5 minutes.
+
+### Step 1 — Start the stack
 
 ```powershell
-# Lock, compile, pip, validators, SQLite, Gate 5 FAST, MCP FAST, whitespace.
-.\.venv\Scripts\python.exe scripts\release_check.py
+.\scripts\stack.ps1 up
+```
 
-# Individual deterministic benchmarks.
+Open **http://localhost:5173** — you'll see the Dashboard.
+
+### Step 2 — Submit a suspicious expense
+
+1. Click **Submit Expense** in the sidebar
+2. Click the **🚨 Suspicious Software ($3,000)** preset button
+3. Click **Submit Expense**
+
+**What happens:**
+- Frontend calls `POST /webhook/northstar-expense` (n8n Workflow 01)
+- Workflow 01 normalizes the payload → calls FastAPI
+- FastAPI detects: $3,000 software, duplicate keyword in description, weekend transaction, no receipt → **CRITICAL risk, 5 anomaly flags**
+- Routing engine assigns **Finance Director + Compliance** approver level
+- Workflow 01 launches **Workflow 20** (Approval Orchestrator)
+- Workflow 20 reaches the `Wait for Human Decision` node and **pauses**
+
+**You see:** Result panel showing `ESCALATED` / `CRITICAL` / anomaly flags
+
+### Step 3 — Verify in n8n
+
+Open **http://localhost:5679**
+
+- Go to **Workflows → North Star | 01 Expense Intake** → check the execution that just completed ✅
+- Go to **Workflows → North Star | 20 Approval Orchestrator** → a new execution is **currently waiting** (shows "waiting" status, not completed)
+
+This proves the durable HITL architecture is live — not a fake demo.
+
+### Step 4 — Verify the approval inbox
+
+Back in the frontend, click **Approvals** in the sidebar.
+
+Jordan Lee's $3,000 expense appears in the inbox.
+
+This connects: UI submission → n8n 01 → FastAPI → PostgreSQL → n8n 20 WAIT → Approval Inbox reads pending task.
+
+### Step 5 — Approve from the browser
+
+1. Expand the expense card
+2. Enter: **Approver:** `Tushar Demo`, **Comment:** `Reviewed and approved`
+3. Click **Approve**
+
+**What happens:**
+- Frontend calls `POST /webhook/northstar-approval` (n8n Workflow 02)
+- Workflow 02 records the decision → creates resume event in outbox
+- Workflow 02 calls the n8n resume URL to wake up **the same Workflow 20 execution**
+- Workflow 20 continues from `Wait for Human Decision` → fetches final state → marks completed → sends notification
+
+### Step 6 — Confirm in n8n
+
+Go to **Workflow 20 executions** — the execution that was waiting should now show **completed** ✅
+
+The same execution ID that was waiting is now done — this is the proof of durable HITL.
+
+### Step 7 — Verify the outcome
+
+Back in the frontend:
+
+1. **Dashboard** — the row shows `APPROVED` / `CRITICAL` (risk level preserved)
+2. Click the expense → **Overview tab** → shows human decision with approver name
+3. **Lineage tab** → timeline shows both automated events AND the human approval event
+4. **Provenance tab** → click **Verify Integrity** → result: **PASS** ✅
+
+### Step 8 — Show governed context
+
+Click **Governed Context** in the sidebar.
+
+- Expand any policy → see versioned rules with parameters (e.g., `AMOUNT_THRESHOLD: 500`, `CATEGORY_RISK_WEIGHTS`)
+- Expand any business term → see certified definitions that the policy engine referenced
+
+### Bonus: Prove n8n is mandatory
+
+Stop n8n, try to submit an expense — it will **fail visibly** (no silent fallback):
+
+```powershell
+docker compose -p northstar-g9 stop n8n
+# Try submitting via UI → error shown in result panel
+docker compose -p northstar-g9 start n8n
+```
+
+This proves n8n is not decorative — the system won't pretend orchestration succeeded.
+
+---
+
+## Development
+
+### Local dev without Docker
+
+```powershell
+# Start FastAPI
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+# Start frontend dev server (with Vite proxy to FastAPI + n8n)
+cd frontend
+npm install
+npm run dev
+# Open http://localhost:5173
+```
+
+### Run tests
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest -q
+```
+
+### Run evaluations
+
+```powershell
 .\.venv\Scripts\python.exe -m scripts.run_evals --profile fast
 .\.venv\Scripts\python.exe -m scripts.run_mcp_evals --profile fast
 ```
 
-GitHub Actions defines static, SQLite, PostgreSQL 16.14, Docker structural, and manual full-stack integration checks. The commands mirror the locally verified release process.
+### Build frontend only
 
-## Repository map
+```powershell
+cd frontend
+npm run build          # Production build → dist/
+npm run dev            # Dev server on :5173 with proxy
+```
 
-| Area | Ownership |
-|---|---|
-| [`app/`](app) | FastAPI contracts, persistence, approvals, reliability, context, and provenance |
-| [`n8n/`](n8n) | Ten source-controlled orchestration workflows |
-| [`context/`](context) | Governed seed registry and deterministic risk-signal catalog |
-| [`evals/`](evals) | Immutable versioned datasets, baseline, metrics, and reporting |
-| [`mcp_server/`](mcp_server) | Governed MCP tools, resources, prompt, and transport adapter |
-| [`metabase/`](metabase) | Dashboard manifest, SQL questions, bootstrap, and validators |
-| [`observability/`](observability) | Approved analytical view definitions |
-| [`alembic/`](alembic) | Forward-only PostgreSQL schema history |
-| [`infra/`](infra) | Reproducible Docker runtime assets |
-| [`scripts/`](scripts) | Release, stack, seed, smoke, and evaluation commands |
-| [`tests/`](tests) | Unit, contract, integration, persistence, and release checks |
-| [`docs/`](docs) | Current architecture, evidence, demo, security boundaries, ADRs, and gate history |
+---
 
-## Security and production limits
+## Verification
 
-Implemented boundaries include authoritative-context checks, safe abstention, immutable provenance, deterministic financial policy, a read-only Metabase database role, minimized MCP outputs, loopback-only MCP HTTP, separate service databases/principals, and no committed secrets.
+The default GitHub Actions workflow validates the dependency lock, Python
+imports, Alembic migrations, n8n definitions, MCP contract, Metabase assets,
+SQLite tests, PostgreSQL tests, deterministic evaluations, MCP evaluations,
+and Docker configuration. Run the same core checks locally before a demo:
 
-This remains a local reference release, not an internet-facing production deployment. Production work would require:
+```powershell
+# Backend release checks and tests
+.\.venv\Scripts\python.exe scripts\release_check.py
+.\.venv\Scripts\python.exe -m pytest -q
 
-- User authentication, identity-bound approval, RBAC, and tenant isolation.
-- MCP OAuth, TLS termination, authenticated ingress, and cloud network policy.
-- Managed secret storage and rotation.
-- A real notification provider with idempotency support.
-- Backup/restore automation, high availability, and disaster recovery.
-- Broader SLO monitoring and representative evaluation datasets.
+# Deterministic and MCP evaluation gates
+.\.venv\Scripts\python.exe -m scripts.run_evals --profile fast
+.\.venv\Scripts\python.exe -m scripts.run_mcp_evals --profile fast
 
-Voice is intentionally deferred and is not required by the architecture.
+# Frontend type-check and production bundle
+Push-Location frontend
+npm install
+npm run build
+Pop-Location
 
-## Documentation
+# Live Compose verification
+.\scripts\stack.ps1 up
+.\scripts\stack.ps1 verify
+```
 
-- [Current detailed architecture](docs/architecture/FINAL_ARCHITECTURE.md)
-- [Capability-to-evidence matrix](docs/PORTFOLIO_EVIDENCE.md)
-- [Interview demo and talk track](docs/DEMO_SCRIPT.md)
-- [Security boundaries](docs/SECURITY_BOUNDARIES.md)
-- [Architecture decision records](docs/adr)
-- [Historical engineering gate evidence](docs/architecture)
+For MCP development, open the official Inspector against the server module:
 
-`FINAL_ARCHITECTURE.md` describes the current system. Files named `G*.md` preserve the implementation and verification history behind it.
+```powershell
+uv run mcp dev mcp_server/server.py
+```
 
-## License
+The server also supports stdio and loopback-only Streamable HTTP:
 
-[MIT](LICENSE)
+```powershell
+.\.venv\Scripts\python.exe -m mcp_server.server
+.\.venv\Scripts\python.exe -m mcp_server.server --transport streamable-http --host 127.0.0.1 --port 8765
+```
+
+---
+
+## Environment Variables
+
+Copy `.env.example` to `.env` and fill in the values:
+
+```env
+# PostgreSQL
+NORTHSTAR_POSTGRES_ADMIN_USER=northstar_admin
+NORTHSTAR_POSTGRES_ADMIN_PASSWORD=<your-password>
+NORTHSTAR_APP_DB_USER=northstar_app
+NORTHSTAR_APP_DB_PASSWORD=<your-password>
+
+# n8n
+N8N_DB_USER=northstar_n8n
+N8N_DB_PASSWORD=<your-password>
+N8N_ENCRYPTION_KEY=<32-char-minimum-key>
+
+# Metabase
+METABASE_APP_DB_USER=northstar_metabase
+METABASE_APP_DB_PASSWORD=<your-password>
+METABASE_ADMIN_EMAIL=admin@northstar.local
+METABASE_ADMIN_PASSWORD=<your-password>
+METABASE_ENCRYPTION_SECRET_KEY=<your-key>
+
+# Ports (optional overrides)
+NORTHSTAR_POSTGRES_PORT=55432
+NORTHSTAR_API_PORT=8000
+N8N_PORT=5679
+METABASE_PORT=3000
+NORTHSTAR_FRONTEND_PORT=5173
+```
+
+---
+
+## Design Principles
+
+1. **n8n owns orchestration** — workflow nodes coordinate services but do not own financial policy
+2. **FastAPI owns policy** — all validation, risk scoring, routing, and approval outcomes are deterministic Python code, never LLM output
+3. **PostgreSQL is the source of truth** — n8n and Metabase have separate application databases
+4. **MCP uses governed paths** — reads go through the API and controlled writes go through existing n8n webhooks
+5. **Every decision has provenance** — immutable evidence record with cryptographic hash
+6. **External effects use the outbox** — at-least-once delivery, idempotent consumers
+7. **No LLM determines financial outcomes** — all policy, risk, and routing is deterministic
+8. **Migrations are immutable** — applied Alembic migrations are never edited, only extended forward
+9. **Context versions are immutable** — certified policies and terms get new versions, never mutated
+10. **Frontend preserves domain ownership** — no financial policy or approval authority moves into browser code
+
+---
+
+## Scope and Security
+
+North Star is a local/reference engineering release intended for evaluation,
+portfolio review, and controlled demonstrations. It does not claim production
+authentication, role-based access control, TLS termination, high availability,
+or managed-secret infrastructure. Use only disposable local credentials, keep
+the published ports loopback-bound, and add your organization’s identity,
+authorization, secrets, network, and operational controls before any real-world
+deployment.
