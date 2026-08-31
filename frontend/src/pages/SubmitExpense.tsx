@@ -4,6 +4,8 @@ import { Coffee, Plane, ShieldAlert, CalendarX, ArrowRight, CheckCircle2, XCircl
 import { submitExpense } from '../lib/api';
 import { ExpenseSubmission, DEPARTMENTS, CATEGORIES, ExpenseState, STATUS_COLORS, RISK_COLORS } from '../types';
 import { cn, humanizeStatus, formatCurrency } from '../lib/utils';
+import { ErrorAlert } from '@/components/ui/error-alert';
+import { toast } from 'sonner';
 
 export default function SubmitExpense() {
   const [formData, setFormData] = useState<ExpenseSubmission>({
@@ -123,97 +125,100 @@ export default function SubmitExpense() {
     try {
       const res = await submitExpense(formData);
       setResult(res);
+      toast.success('Expense submitted successfully!');
     } catch (err: any) {
-      setError(err.message || 'Failed to submit expense');
+      const msg = err.message || 'Failed to submit expense';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Submit Expense</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Submit Expense</h1>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <button
           type="button"
           onClick={() => loadPreset('coffee')}
-          className="p-4 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 flex flex-col items-center justify-center text-center space-y-2 transition-colors"
+          className="p-4 border border-gray-200 dark:border-gray-800 rounded-lg bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 flex flex-col items-center justify-center text-center space-y-2 transition-colors"
         >
           <Coffee className="text-blue-500" size={24} />
-          <span className="text-sm font-medium text-gray-700">Auto-Approve Coffee ($28.50)</span>
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Auto-Approve Coffee ($28.50)</span>
         </button>
         <button
           type="button"
           onClick={() => loadPreset('travel')}
-          className="p-4 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 flex flex-col items-center justify-center text-center space-y-2 transition-colors"
+          className="p-4 border border-gray-200 dark:border-gray-800 rounded-lg bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 flex flex-col items-center justify-center text-center space-y-2 transition-colors"
         >
-          <Plane className="text-indigo-500" size={24} />
-          <span className="text-sm font-medium text-gray-700">Normal Travel ($640)</span>
+          <Plane className="text-indigo-500 dark:text-indigo-400" size={24} />
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Normal Travel ($640)</span>
         </button>
         <button
           type="button"
           onClick={() => loadPreset('suspicious')}
-          className="p-4 border border-red-200 rounded-lg bg-red-50 hover:bg-red-100 flex flex-col items-center justify-center text-center space-y-2 transition-colors"
+          className="p-4 border border-red-200 dark:border-red-900/50 rounded-lg bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 flex flex-col items-center justify-center text-center space-y-2 transition-colors"
         >
           <ShieldAlert className="text-red-500" size={24} />
-          <span className="text-sm font-medium text-red-900">Suspicious Software ($3,000)</span>
+          <span className="text-sm font-medium text-red-900 dark:text-red-400">Suspicious Software ($3,000)</span>
         </button>
         <button
           type="button"
           onClick={() => loadPreset('invalid')}
-          className="p-4 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 flex flex-col items-center justify-center text-center space-y-2 transition-colors"
+          className="p-4 border border-gray-200 dark:border-gray-800 rounded-lg bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 flex flex-col items-center justify-center text-center space-y-2 transition-colors"
         >
           <CalendarX className="text-amber-500" size={24} />
-          <span className="text-sm font-medium text-gray-700">Invalid Future Date</span>
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Invalid Future Date</span>
         </button>
       </div>
 
-      <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+      <div className="bg-white dark:bg-gray-900 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800">
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Expense ID</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Expense ID</label>
               <input
                 type="text"
                 name="expense_id"
                 required
                 value={formData.expense_id}
                 onChange={handleInputChange}
-                className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2"
+                className="w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2 bg-white dark:bg-gray-950 dark:text-gray-100"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Employee ID</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Employee ID</label>
               <input
                 type="text"
                 name="employee_id"
                 required
                 value={formData.employee_id}
                 onChange={handleInputChange}
-                className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2"
+                className="w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2 bg-white dark:bg-gray-950 dark:text-gray-100"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Employee Name</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Employee Name</label>
               <input
                 type="text"
                 name="employee_name"
                 required
                 value={formData.employee_name}
                 onChange={handleInputChange}
-                className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2"
+                className="w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2 bg-white dark:bg-gray-950 dark:text-gray-100"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Department</label>
               <select
                 name="department"
                 value={formData.department}
                 onChange={handleInputChange}
-                className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2"
+                className="w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2 bg-white dark:bg-gray-950 dark:text-gray-100"
               >
                 {DEPARTMENTS.map(dept => (
                   <option key={dept} value={dept}>{dept}</option>
@@ -221,12 +226,12 @@ export default function SubmitExpense() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Category</label>
               <select
                 name="category"
                 value={formData.category}
                 onChange={handleInputChange}
-                className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2"
+                className="w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2 bg-white dark:bg-gray-950 dark:text-gray-100"
               >
                 {CATEGORIES.map(cat => (
                   <option key={cat} value={cat}>{cat}</option>
@@ -234,7 +239,7 @@ export default function SubmitExpense() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Amount</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Amount</label>
               <div className="relative rounded-md shadow-sm">
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                   <span className="text-gray-500 sm:text-sm">$</span>
@@ -246,40 +251,40 @@ export default function SubmitExpense() {
                   required
                   value={formData.amount || ''}
                   onChange={handleInputChange}
-                  className="w-full rounded-md border-gray-300 pl-7 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2"
+                  className="w-full rounded-md border-gray-300 dark:border-gray-700 pl-7 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2 bg-white dark:bg-gray-950 dark:text-gray-100"
                 />
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Merchant</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Merchant</label>
               <input
                 type="text"
                 name="merchant"
                 required
                 value={formData.merchant}
                 onChange={handleInputChange}
-                className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2"
+                className="w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2 bg-white dark:bg-gray-950 dark:text-gray-100"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Transaction Date</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Transaction Date</label>
               <input
                 type="date"
                 name="transaction_date"
                 required
                 value={formData.transaction_date}
                 onChange={handleInputChange}
-                className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2"
+                className="w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2 bg-white dark:bg-gray-950 dark:text-gray-100"
               />
             </div>
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
               <textarea
                 name="description"
                 rows={2}
                 value={formData.description}
                 onChange={handleInputChange}
-                className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2"
+                className="w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2 bg-white dark:bg-gray-950 dark:text-gray-100"
               />
             </div>
             <div className="md:col-span-2 flex items-center h-10">
@@ -289,9 +294,9 @@ export default function SubmitExpense() {
                 name="receipt_attached"
                 checked={formData.receipt_attached}
                 onChange={handleCheckboxChange}
-                className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                className="h-4 w-4 rounded border-gray-300 dark:border-gray-700 text-indigo-600 focus:ring-indigo-500"
               />
-              <label htmlFor="receipt" className="ml-2 block text-sm text-gray-900">
+              <label htmlFor="receipt" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
                 Receipt Attached
               </label>
             </div>
@@ -309,23 +314,12 @@ export default function SubmitExpense() {
         </form>
       </div>
 
-      {error && (
-        <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded-md">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <XCircle className="h-5 w-5 text-red-400" aria-hidden="true" />
-            </div>
-            <div className="ml-3">
-              <p className="text-sm text-red-700">{error}</p>
-            </div>
-          </div>
-        </div>
-      )}
+      {error && <ErrorAlert message={error} />}
 
       {result && (
-        <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-          <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
-            <h3 className="text-lg font-medium text-gray-900 flex items-center">
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg shadow-sm overflow-hidden">
+          <div className="bg-gray-50 dark:bg-gray-800/50 px-6 py-4 border-b border-gray-200 dark:border-gray-800">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 flex items-center">
               {result.status === 'REJECTED_VALIDATION' ? (
                 <XCircle className="h-5 w-5 text-red-500 mr-2" />
               ) : (
@@ -336,28 +330,28 @@ export default function SubmitExpense() {
           </div>
           <div className="p-6 space-y-4">
             <div className="flex items-center space-x-4">
-              <span className={cn('inline-flex items-center px-3 py-1 rounded-full text-sm font-medium', STATUS_COLORS[result.status])}>
+              <span className={cn('inline-flex items-center px-3 py-1 rounded-full text-sm font-medium', STATUS_COLORS[result.status] || 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200')}>
                 {humanizeStatus(result.status)}
               </span>
-              <span className={cn('inline-flex items-center px-3 py-1 rounded-full text-sm font-medium', RISK_COLORS[result.risk_level ?? ''] || 'bg-gray-100 text-gray-800')}>
+              <span className={cn('inline-flex items-center px-3 py-1 rounded-full text-sm font-medium', RISK_COLORS[result.risk_level ?? ''] || 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200')}>
                 {result.risk_level || 'N/A'} Risk
               </span>
             </div>
 
-            <div className="bg-gray-50 rounded-md p-4 text-sm text-gray-700 border border-gray-100">
-              <span className="font-semibold text-gray-900">Reason: </span>
+            <div className="bg-gray-50 dark:bg-gray-800/50 rounded-md p-4 text-sm text-gray-700 dark:text-gray-300 border border-gray-100 dark:border-gray-800">
+              <span className="font-semibold text-gray-900 dark:text-gray-100">Reason: </span>
               {result.message}
             </div>
 
             {result.anomaly_flags && result.anomaly_flags.length > 0 && (
               <div>
-                <h4 className="text-sm font-medium text-gray-900 mb-2 flex items-center">
+                <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2 flex items-center">
                   <AlertTriangle className="h-4 w-4 text-amber-500 mr-1" />
                   Flags Detected
                 </h4>
                 <div className="flex flex-wrap gap-2">
                   {result.anomaly_flags.map((flag, i) => (
-                    <span key={i} className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-red-100 text-red-800 border border-red-200">
+                    <span key={i} className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400 border border-red-200 dark:border-red-800">
                       {flag}
                     </span>
                   ))}
@@ -365,13 +359,13 @@ export default function SubmitExpense() {
               </div>
             )}
 
-            <div className="pt-4 flex justify-between items-center border-t border-gray-100">
+            <div className="pt-4 flex justify-between items-center border-t border-gray-100 dark:border-gray-800">
               <button
                 onClick={() => {
                   setResult(null);
                   setFormData(prev => ({ ...prev, expense_id: '' }));
                 }}
-                className="text-sm font-medium text-gray-600 hover:text-gray-900"
+                className="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
               >
                 Submit Another
               </button>

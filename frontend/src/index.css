@@ -6,14 +6,17 @@
   body {
     @apply bg-gray-50 text-gray-900;
   }
+  html.dark body {
+    @apply bg-gray-950 text-gray-100;
+  }
 }
 
 @layer components {
   .card {
-    @apply bg-white rounded-xl border border-gray-200 shadow-sm;
+    @apply bg-white rounded-xl border border-gray-200 shadow-sm dark:bg-gray-900 dark:border-gray-800;
   }
   .card-header {
-    @apply px-6 py-4 border-b border-gray-100;
+    @apply px-6 py-4 border-b border-gray-100 dark:border-gray-800;
   }
   .card-body {
     @apply px-6 py-4;
@@ -34,10 +37,16 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #9ca3af;
 }
+html.dark ::-webkit-scrollbar-thumb {
+  background: #4b5563;
+}
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
 
 /* Timeline connector */
 .timeline-line {
-  @apply absolute left-4 top-8 bottom-0 w-0.5 bg-gray-200;
+  @apply absolute left-4 top-8 bottom-0 w-0.5 bg-gray-200 dark:bg-gray-800;
 }
 
 /* Pulse animation for live indicators */
