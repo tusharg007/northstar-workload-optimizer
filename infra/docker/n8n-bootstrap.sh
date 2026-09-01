@@ -3,7 +3,7 @@ set -eu
 
 SOURCE_DIR=/workflows-source
 IMPORT_DIR=/tmp/northstar-workflows
-EXPECTED=10
+EXPECTED=13
 
 rm -rf "$IMPORT_DIR"
 mkdir -p "$IMPORT_DIR"
@@ -35,6 +35,9 @@ for workflow_id in \
   northstarRecordDecisionService \
   northstarApprovalOrchestrator \
   northstarApprovalSLAMonitor \
+  northstarExecutiveBriefingAgent \
+  northstarPolicyCopilot \
+  northstarForensicAuditAgent \
   northstarExpenseIntake \
   northstarApprovalDecision
 do

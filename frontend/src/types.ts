@@ -218,6 +218,7 @@ export interface ContextOwner {
 export interface HealthResponse {
   status: string;
   service?: string;
+  database?: 'connected' | 'disconnected';
 }
 
 // ── Decision ────────────────────────────────────────────────

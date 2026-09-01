@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import {
   ChevronLeft,
   AlertTriangle,
@@ -12,13 +12,16 @@ import {
   Server,
   AlertCircle,
   Copy,
-  Check
+  Check,
+  Loader2,
+  ScrollText
 } from 'lucide-react';
 import {
   getExpense,
   getExplanation,
   getLineage,
   getProvenance,
+  submitDecisionViaWebhook,
   verifyProvenance
 } from '../lib/api';
 import type {
@@ -31,6 +34,16 @@ import type {
 import { STATUS_COLORS, RISK_COLORS } from '../types';
 import { formatCurrency, formatDate, formatDateTime, humanizeStatus, cn } from '../lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { toast } from 'sonner';
 
 export default function ExpenseDetail() {
@@ -41,24 +54,83 @@ export default function ExpenseDetail() {
   const [expense, setExpense] = useState<ExpenseState | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [approver, setApprover] = useState('Finance Director');
+  const [comment, setComment] = useState('');
+  const [submittingDecision, setSubmittingDecision] = useState(false);
+  const [auditOpen, setAuditOpen] = useState(false);
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [auditReport, setAuditReport] = useState('');
+  const [auditError, setAuditError] = useState<string | null>(null);
+
+  const fetchExpense = async (showLoading = true) => {
+    if (!id) return;
+    try {
+      if (showLoading) setLoading(true);
+      setError(null);
+      const data = await getExpense(id);
+      setExpense(data);
+    } catch (err: any) {
+      setError(err.message || 'Failed to load expense details');
+    } finally {
+      if (showLoading) setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    if (!id) return;
-
-    const fetchBase = async () => {
-      try {
-        setLoading(true);
-        const data = await getExpense(id);
-        setExpense(data);
-      } catch (err: any) {
-        setError(err.message || 'Failed to load expense details');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchBase();
+    fetchExpense();
   }, [id]);
+
+  const handleDecision = async (decision: 'approve' | 'reject') => {
+    if (!expense) return;
+    try {
+      setSubmittingDecision(true);
+      await submitDecisionViaWebhook(expense.expense_id, {
+        decision,
+        approver,
+        comment,
+      });
+      toast.success(decision === 'approve' ? 'Expense approved!' : 'Expense rejected!');
+      setComment('');
+      await fetchExpense(false);
+    } catch (err: any) {
+      toast.error(err.message || `Failed to ${decision} expense`);
+    } finally {
+      setSubmittingDecision(false);
+    }
+  };
+
+  const handleGenerateAudit = async () => {
+    if (!expense) return;
+    setAuditOpen(true);
+    setAuditLoading(true);
+    setAuditReport('');
+    setAuditError(null);
+    try {
+      const response = await fetch('/webhook/northstar-forensic-audit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Correlation-ID': `northstar-audit-ui-${Date.now()}`,
+        },
+        body: JSON.stringify({ expense_id: expense.expense_id }),
+        signal: AbortSignal.timeout(30_000),
+      });
+      const body = await response.json().catch(() => null) as { audit_report?: string; message?: string } | null;
+      if (!response.ok) {
+        throw new Error(body?.message || `Audit workflow failed with HTTP ${response.status}`);
+      }
+      if (!body?.audit_report) {
+        throw new Error('Audit workflow returned an empty report');
+      }
+      setAuditReport(body.audit_report);
+    } catch (err: any) {
+      const message = err.message || 'Unable to generate the audit report';
+      setAuditError(message);
+      toast.error(message);
+    } finally {
+      setAuditLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -111,11 +183,83 @@ export default function ExpenseDetail() {
             </p>
           </div>
           <div className="text-left md:text-right">
+            {(expense.status === 'APPROVED' || expense.status === 'REJECTED') && (
+              <Button
+                type="button"
+                variant="outline"
+                className="mb-3"
+                onClick={() => void handleGenerateAudit()}
+                disabled={auditLoading}
+              >
+                {auditLoading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <ScrollText className="mr-2 h-4 w-4" />
+                )}
+                Generate Audit Report
+              </Button>
+            )}
             <div className="text-3xl font-bold text-gray-900 dark:text-gray-100">{formatCurrency(p.amount)}</div>
             <div className="text-sm text-gray-500 dark:text-gray-400">{p.merchant} • {p.category}</div>
           </div>
         </div>
       </div>
+
+      {(expense.status === 'PENDING_APPROVAL' || expense.status === 'ESCALATED') && (
+        <section className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-5 shadow-sm dark:border-amber-900/60 dark:bg-amber-950/30">
+          <div className="mb-4">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Approval Action</h2>
+            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+              Record the human decision through the governed n8n approval workflow.
+            </p>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label htmlFor="detail-approver" className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Approver name
+              </label>
+              <Input
+                id="detail-approver"
+                value={approver}
+                onChange={event => setApprover(event.target.value)}
+                disabled={submittingDecision}
+              />
+            </div>
+            <div className="md:row-span-2">
+              <label htmlFor="detail-comment" className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Comment
+              </label>
+              <Textarea
+                id="detail-comment"
+                value={comment}
+                onChange={event => setComment(event.target.value)}
+                placeholder="Add review notes..."
+                disabled={submittingDecision}
+              />
+            </div>
+            <div className="flex gap-3">
+              <Button
+                type="button"
+                onClick={() => handleDecision('approve')}
+                disabled={submittingDecision || !approver.trim()}
+                className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600"
+              >
+                <CheckCircle className="mr-2 h-4 w-4" />
+                Approve
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={() => handleDecision('reject')}
+                disabled={submittingDecision || !approver.trim()}
+              >
+                <XCircle className="mr-2 h-4 w-4" />
+                Reject
+              </Button>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Tabs */}
       <div className="border-b border-gray-200 dark:border-gray-800 mb-6">
@@ -162,6 +306,33 @@ export default function ExpenseDetail() {
         {activeTab === 'lineage' && <LineageTab id={id!} />}
         {activeTab === 'provenance' && <ProvenanceTab id={id!} />}
       </div>
+
+      <Dialog open={auditOpen} onOpenChange={setAuditOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Forensic Audit Report</DialogTitle>
+            <DialogDescription>
+              Advisory memorandum generated from persisted expense, explanation, lineage, and provenance records. It does not alter the decision.
+            </DialogDescription>
+          </DialogHeader>
+          {auditLoading && (
+            <div className="flex min-h-48 items-center justify-center gap-3 text-gray-600 dark:text-gray-300">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              Generating audit memorandum...
+            </div>
+          )}
+          {auditError && (
+            <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">
+              {auditError}
+            </div>
+          )}
+          {auditReport && (
+            <div className="max-h-[65vh] overflow-y-auto whitespace-pre-wrap rounded-md border border-gray-200 bg-gray-50 p-5 text-sm leading-6 text-gray-800 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-200">
+              {auditReport}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

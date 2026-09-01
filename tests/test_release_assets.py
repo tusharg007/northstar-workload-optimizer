@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import re
 
 from app.main import DEFAULT_RUNTIME_DB
 from etl.etl_pipeline import DB_PATH as ANALYTICAL_DB
@@ -56,11 +57,23 @@ def test_n8n_workflows_have_import_ids_and_expected_topology() -> None:
     assert approval_body == "={{ $('Service Input').item.json.payload }}"
 
 
-def test_n8n_workflows_need_no_credentials() -> None:
+def test_n8n_workflows_need_no_credentials_or_unapproved_env_access() -> None:
     for path in (PROJECT_DIR / "n8n" / "workflows").glob("*.json"):
         workflow = _workflow(path.name)
         assert all("credentials" not in node for node in workflow["nodes"])
-        assert "$env" not in json.dumps(workflow)
+        env_refs = set(
+            re.findall(r"\$env\.([A-Z][A-Z0-9_]*)", json.dumps(workflow))
+        )
+        allowed = (
+            {"OPENAI_API_KEY", "OPENAI_API_BASE"}
+            if path.name in {
+                "25_executive_briefing_agent.json",
+                "30_policy_copilot.json",
+                "31_forensic_audit_agent.json",
+            }
+            else set()
+        )
+        assert env_refs <= allowed
 
 
 def test_operational_and_analytical_databases_are_isolated() -> None:

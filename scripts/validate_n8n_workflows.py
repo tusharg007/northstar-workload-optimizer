@@ -21,11 +21,21 @@ EXPECTED_FILES = {
     "22_approval_sla_monitor.json",
     "23_reliability_dispatcher.json",
     "24_dead_letter_replay.json",
+    "25_executive_briefing_agent.json",
+    "30_policy_copilot.json",
+    "31_forensic_audit_agent.json",
     "99_global_error_handler.json",
 }
 PUBLIC_WEBHOOKS = {
     "northstar-expense": "POST",
     "northstar-approval": "POST",
+    "northstar-policy-query": "POST",
+    "northstar-forensic-audit": "POST",
+}
+ALLOWED_ENV_REFS = {
+    "25_executive_briefing_agent.json": {"OPENAI_API_BASE", "OPENAI_API_KEY"},
+    "30_policy_copilot.json": {"OPENAI_API_BASE", "OPENAI_API_KEY"},
+    "31_forensic_audit_agent.json": {"OPENAI_API_BASE", "OPENAI_API_KEY"},
 }
 SUPPORTED_NODE_TYPES = {
     "n8n-nodes-base.executeWorkflow",
@@ -152,8 +162,13 @@ def validate_workflows(
             names[workflow_name] = filename
 
         serialized = json.dumps(workflow, sort_keys=True)
-        if "$env" in serialized:
-            errors.append(f"{filename}: forbidden $env expression")
+        env_refs = set(re.findall(r"\$env\.([A-Z][A-Z0-9_]*)", serialized))
+        unexpected_env_refs = env_refs - ALLOWED_ENV_REFS.get(filename, set())
+        if unexpected_env_refs:
+            errors.append(
+                f"{filename}: forbidden environment references "
+                f"{sorted(unexpected_env_refs)}"
+            )
         if SECRET_PATTERN.search(serialized):
             errors.append(f"{filename}: possible hard-coded secret")
 
@@ -269,6 +284,34 @@ def validate_workflows(
             "Replay Input",
             "Request Replay",
             "Invoke Reliability Dispatcher",
+        },
+        "25_executive_briefing_agent.json": {
+            "Briefing Input",
+            "Build Briefing Prompt",
+            "Generate Briefing",
+            "Extract Summary",
+            "Return Briefing",
+        },
+        "30_policy_copilot.json": {
+            "Policy Query Webhook",
+            "Fetch All Policies",
+            "Fetch All Terms",
+            "Build Copilot Prompt",
+            "Generate Answer",
+            "Extract Answer",
+            "Respond to Webhook",
+        },
+        "31_forensic_audit_agent.json": {
+            "Audit Input",
+            "Audit Report Webhook",
+            "Fetch Expense",
+            "Fetch Explanation",
+            "Fetch Lineage",
+            "Fetch Provenance",
+            "Build Audit Prompt",
+            "Generate Audit Report",
+            "Extract Report",
+            "Return Audit",
         },
         "99_global_error_handler.json": {
             "North Star Error Trigger",

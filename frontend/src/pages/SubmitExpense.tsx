@@ -1,10 +1,20 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Coffee, Plane, ShieldAlert, CalendarX, ArrowRight, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
+import { Coffee, Plane, ShieldAlert, CalendarX, ArrowRight, CheckCircle2, XCircle, AlertTriangle, Loader2, MessageCircleQuestion } from 'lucide-react';
 import { submitExpense } from '../lib/api';
 import { ExpenseSubmission, DEPARTMENTS, CATEGORIES, ExpenseState, STATUS_COLORS, RISK_COLORS } from '../types';
 import { cn, humanizeStatus, formatCurrency } from '../lib/utils';
 import { ErrorAlert } from '@/components/ui/error-alert';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { toast } from 'sonner';
 
 export default function SubmitExpense() {
@@ -26,6 +36,11 @@ export default function SubmitExpense() {
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<ExpenseState | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [copilotOpen, setCopilotOpen] = useState(false);
+  const [policyQuery, setPolicyQuery] = useState('');
+  const [policyAnswer, setPolicyAnswer] = useState('');
+  const [copilotError, setCopilotError] = useState<string | null>(null);
+  const [copilotLoading, setCopilotLoading] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
@@ -135,10 +150,47 @@ export default function SubmitExpense() {
     }
   };
 
+  const handlePolicyQuery = async () => {
+    const query = policyQuery.trim();
+    if (!query) return;
+    setCopilotLoading(true);
+    setPolicyAnswer('');
+    setCopilotError(null);
+    try {
+      const response = await fetch('/webhook/northstar-policy-query', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Correlation-ID': `northstar-policy-ui-${Date.now()}`,
+        },
+        body: JSON.stringify({ query }),
+        signal: AbortSignal.timeout(15_000),
+      });
+      const body = await response.json().catch(() => null) as { answer?: string; message?: string } | null;
+      if (!response.ok) {
+        throw new Error(body?.message || `Policy Copilot failed with HTTP ${response.status}`);
+      }
+      if (!body?.answer) {
+        throw new Error('Policy Copilot returned an empty answer');
+      }
+      setPolicyAnswer(body.answer);
+    } catch (err: any) {
+      const message = err.message || 'Policy Copilot is unavailable';
+      setCopilotError(message);
+      toast.error(message);
+    } finally {
+      setCopilotLoading(false);
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Submit Expense</h1>
+        <Button type="button" variant="outline" onClick={() => setCopilotOpen(true)}>
+          <MessageCircleQuestion className="mr-2 h-4 w-4" />
+          Ask Policy Copilot
+        </Button>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -381,6 +433,51 @@ export default function SubmitExpense() {
           </div>
         </div>
       )}
+
+      <Dialog open={copilotOpen} onOpenChange={setCopilotOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Ask Policy Copilot</DialogTitle>
+            <DialogDescription>
+              Get an advisory answer grounded in North Star&apos;s certified policies. The copilot cannot approve or reject expenses.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Input
+              value={policyQuery}
+              onChange={event => setPolicyQuery(event.target.value)}
+              onKeyDown={event => {
+                if (event.key === 'Enter' && !copilotLoading) void handlePolicyQuery();
+              }}
+              placeholder="Can I expense a $200 team dinner?"
+              disabled={copilotLoading}
+              aria-label="Policy question"
+            />
+            {copilotLoading && (
+              <div className="flex items-center gap-2 rounded-md bg-gray-50 p-4 text-sm text-gray-600 dark:bg-gray-900 dark:text-gray-300">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Checking certified policies...
+              </div>
+            )}
+            {copilotError && <ErrorAlert message={copilotError} />}
+            {policyAnswer && (
+              <div className="max-h-72 overflow-y-auto whitespace-pre-wrap rounded-md border border-gray-200 bg-gray-50 p-4 text-sm leading-6 text-gray-800 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-200">
+                {policyAnswer}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              onClick={() => void handlePolicyQuery()}
+              disabled={copilotLoading || !policyQuery.trim()}
+            >
+              {copilotLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Ask
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

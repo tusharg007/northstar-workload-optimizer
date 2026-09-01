@@ -13,32 +13,85 @@ import {
   Code
 } from 'lucide-react';
 import { ErrorAlert } from '@/components/ui/error-alert';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 interface HealthStatus {
   status: 'ok' | 'error' | 'unknown' | 'manual';
   text: string;
 }
 
+interface DeadLetterEvent {
+  outbox_event_id?: string;
+  event_id?: string;
+  event_type?: string;
+  type?: string;
+  status?: string;
+}
+
+interface WorkflowFailure {
+  failure_id?: string;
+  workflow_id?: string;
+  execution_id?: string;
+  failed_node?: string | null;
+  error_class?: string | null;
+  safe_message?: string;
+  created_at?: string;
+  first_seen_at?: string;
+}
+
 export default function SystemHealth() {
   const [fastApiHealth, setFastApiHealth] = useState<HealthStatus>({ status: 'unknown', text: 'Checking...' });
-  const [dlqEvents, setDlqEvents] = useState<any[]>([]);
-  const [workflowFailures, setWorkflowFailures] = useState<any[]>([]);
+  const [n8nHealth, setN8nHealth] = useState<HealthStatus>({ status: 'unknown', text: 'Checking...' });
+  const [postgresHealth, setPostgresHealth] = useState<HealthStatus>({ status: 'unknown', text: 'Checking...' });
+  const [dlqEvents, setDlqEvents] = useState<DeadLetterEvent[]>([]);
+  const [workflowFailures, setWorkflowFailures] = useState<WorkflowFailure[]>([]);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [error, setError] = useState<string | null>(null);
+  const [replayingId, setReplayingId] = useState<string | null>(null);
+  const [reconciling, setReconciling] = useState(false);
 
   const fetchData = async () => {
     setError(null);
     try {
       const res = await checkHealth();
       setFastApiHealth({ status: res.status === 'ok' ? 'ok' : 'error', text: res.status === 'ok' ? 'Healthy' : 'Error' });
+      setPostgresHealth(
+        res.database === 'connected'
+          ? { status: 'ok', text: 'Connected' }
+          : res.database === 'disconnected'
+            ? { status: 'error', text: 'Disconnected' }
+            : { status: 'unknown', text: 'Not reported by API' },
+      );
     } catch (e: any) {
       setFastApiHealth({ status: 'error', text: 'Unreachable' });
+      setPostgresHealth({ status: 'unknown', text: 'API unavailable' });
       setError(e.message || 'Failed to check system health');
     }
 
     try {
+      let n8nResponse: Response;
+      try {
+        n8nResponse = await fetch(
+          `http://${window.location.hostname}:5679/healthz`,
+          { cache: 'no-store', signal: AbortSignal.timeout(5_000) },
+        );
+      } catch {
+        // n8n does not emit browser CORS headers on /healthz by default.
+        n8nResponse = await fetch('/n8n-healthz', {
+          cache: 'no-store',
+          signal: AbortSignal.timeout(5_000),
+        });
+      }
+      if (!n8nResponse.ok) throw new Error(`HTTP ${n8nResponse.status}`);
+      setN8nHealth({ status: 'ok', text: 'Healthy' });
+    } catch {
+      setN8nHealth({ status: 'error', text: 'Unreachable' });
+    }
+
+    try {
       const dlq = await getDeadLetterEvents();
-      setDlqEvents(dlq || []);
+      setDlqEvents((dlq || []) as DeadLetterEvent[]);
     } catch (e: any) {
       console.error(e);
       setError(prev => prev ? `${prev} | Failed to load DLQ` : 'Failed to load DLQ events');
@@ -46,7 +99,7 @@ export default function SystemHealth() {
 
     try {
       const failures = await getWorkflowFailures();
-      setWorkflowFailures(failures || []);
+      setWorkflowFailures((failures || []) as WorkflowFailure[]);
     } catch (e: any) {
       console.error(e);
       setError(prev => prev ? `${prev} | Failed to load workflow failures` : 'Failed to load workflow failures');
@@ -60,6 +113,44 @@ export default function SystemHealth() {
     const interval = setInterval(fetchData, 10000);
     return () => clearInterval(interval);
   }, []);
+
+  const replayEvent = async (event: DeadLetterEvent) => {
+    const eventId = event.outbox_event_id;
+    if (!eventId) {
+      toast.error('Replay failed');
+      return;
+    }
+
+    try {
+      setReplayingId(eventId);
+      const response = await fetch(`/api/internal/outbox/${encodeURIComponent(eventId)}/replay`, {
+        method: 'POST',
+      });
+      if (!response.ok) throw new Error(`Replay failed with HTTP ${response.status}`);
+      toast.success('Event replayed');
+      await fetchData();
+    } catch (err) {
+      console.error(err);
+      toast.error('Replay failed');
+    } finally {
+      setReplayingId(null);
+    }
+  };
+
+  const runReconciliation = async () => {
+    try {
+      setReconciling(true);
+      const response = await fetch('/api/internal/reliability/reconcile', { method: 'POST' });
+      if (!response.ok) throw new Error(`Reconciliation failed with HTTP ${response.status}`);
+      toast.success('Reconciliation complete');
+      await fetchData();
+    } catch (err) {
+      console.error(err);
+      toast.error('Reconciliation failed');
+    } finally {
+      setReconciling(false);
+    }
+  };
 
   const StatusIcon = ({ status }: { status: HealthStatus['status'] }) => {
     switch (status) {
@@ -112,10 +203,10 @@ export default function SystemHealth() {
               <div className="bg-amber-100 dark:bg-amber-900/30 p-2 rounded"><Workflow className="h-5 w-5 text-amber-600 dark:text-amber-400" /></div>
               <h3 className="font-semibold text-gray-900 dark:text-gray-100">n8n</h3>
             </div>
-            <StatusIcon status="manual" />
+            <StatusIcon status={n8nHealth.status} />
           </div>
-          <p className="text-sm text-gray-600 dark:text-gray-400">Check manually</p>
-          <a href="http://127.0.0.1:5679" target="_blank" rel="noreferrer" className="mt-4 text-xs text-indigo-600 dark:text-indigo-400 flex items-center hover:underline">
+          <p className="text-sm text-gray-600 dark:text-gray-400">{n8nHealth.text}</p>
+          <a href={`http://${window.location.hostname}:5679`} target="_blank" rel="noreferrer" className="mt-4 text-xs text-indigo-600 dark:text-indigo-400 flex items-center hover:underline">
             Open Editor <ExternalLink className="ml-1 h-3 w-3" />
           </a>
         </div>
@@ -127,9 +218,9 @@ export default function SystemHealth() {
               <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded"><Database className="h-5 w-5 text-blue-600 dark:text-blue-400" /></div>
               <h3 className="font-semibold text-gray-900 dark:text-gray-100">PostgreSQL</h3>
             </div>
-            <StatusIcon status={fastApiHealth.status === 'ok' ? 'ok' : 'unknown'} />
+            <StatusIcon status={postgresHealth.status} />
           </div>
-          <p className="text-sm text-gray-600 dark:text-gray-400">{fastApiHealth.status === 'ok' ? 'Connected via API' : 'Status unknown'}</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">{postgresHealth.text}</p>
         </div>
 
         {/* Metabase */}
@@ -152,6 +243,15 @@ export default function SystemHealth() {
         <div className="bg-white dark:bg-gray-900 rounded-lg shadow border border-gray-200 dark:border-gray-800 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 flex items-center justify-between">
             <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Reliability Monitor</h3>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={runReconciliation}
+              disabled={reconciling}
+            >
+              {reconciling ? 'Reconciling...' : 'Run Reconciliation'}
+            </Button>
           </div>
           <div className="p-6 space-y-6">
             <div>
@@ -169,6 +269,7 @@ export default function SystemHealth() {
                         <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">ID</th>
                         <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Type</th>
                         <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
+                        <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Action</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
@@ -177,6 +278,17 @@ export default function SystemHealth() {
                           <td className="px-3 py-2 whitespace-nowrap text-gray-900 dark:text-gray-100 font-mono text-xs">{evt.outbox_event_id || evt.event_id || 'N/A'}</td>
                           <td className="px-3 py-2 whitespace-nowrap text-gray-500 dark:text-gray-400">{evt.event_type || evt.type || 'N/A'}</td>
                           <td className="px-3 py-2 whitespace-nowrap text-red-600 dark:text-red-400">{evt.status || 'FAILED'}</td>
+                          <td className="px-3 py-2 whitespace-nowrap text-right">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => replayEvent(evt)}
+                              disabled={!evt.outbox_event_id || replayingId === evt.outbox_event_id}
+                            >
+                              {replayingId === evt.outbox_event_id ? 'Replaying...' : 'Replay'}
+                            </Button>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -194,6 +306,39 @@ export default function SystemHealth() {
                   {workflowFailures.length} Open
                 </span>
               </div>
+              {workflowFailures.length > 0 ? (
+                <div className="mt-2 overflow-x-auto rounded border dark:border-gray-700">
+                  <table className="min-w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
+                    <thead className="bg-gray-50 dark:bg-gray-800/50">
+                      <tr>
+                        {['Workflow ID', 'Execution ID', 'Failed Node', 'Error Class', 'Safe Message', 'Created At'].map(column => (
+                          <th key={column} className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500 dark:text-gray-400">
+                            {column}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
+                      {workflowFailures.map((failure, index) => (
+                        <tr key={failure.failure_id || `${failure.workflow_id}-${failure.execution_id}-${index}`}>
+                          <td className="whitespace-nowrap px-3 py-2 font-mono text-xs text-gray-900 dark:text-gray-100">{failure.workflow_id || 'N/A'}</td>
+                          <td className="whitespace-nowrap px-3 py-2 font-mono text-xs text-gray-900 dark:text-gray-100">{failure.execution_id || 'N/A'}</td>
+                          <td className="whitespace-nowrap px-3 py-2 text-gray-600 dark:text-gray-300">{failure.failed_node || 'N/A'}</td>
+                          <td className="whitespace-nowrap px-3 py-2 text-gray-600 dark:text-gray-300">{failure.error_class || 'N/A'}</td>
+                          <td className="max-w-xs px-3 py-2 text-gray-600 dark:text-gray-300">{failure.safe_message || 'N/A'}</td>
+                          <td className="whitespace-nowrap px-3 py-2 text-gray-500 dark:text-gray-400">
+                            {failure.created_at || failure.first_seen_at
+                              ? new Date(failure.created_at || failure.first_seen_at!).toLocaleString()
+                              : 'N/A'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="mt-2 text-sm italic text-gray-500 dark:text-gray-400">No open workflow failures.</p>
+              )}
             </div>
           </div>
         </div>

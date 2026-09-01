@@ -20,6 +20,7 @@ import type {
   TermVersion,
   HealthResponse,
 } from '../types';
+import { toast } from 'sonner';
 
 // When served through nginx or Vite proxy, use relative paths.
 // The proxy handles routing /api/* to FastAPI and /webhook/* to n8n.
@@ -37,6 +38,9 @@ async function fetchJSON<T>(url: string, init?: RequestInit): Promise<T> {
     },
   });
   if (!res.ok) {
+    if (res.status === 429) {
+      toast.warning('Rate limited. Please wait a moment.');
+    }
     const body = await res.text();
     let detail = body;
     try {

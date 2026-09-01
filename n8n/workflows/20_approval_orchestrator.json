@@ -134,6 +134,65 @@
     {
       "parameters": {
         "source": "database",
+        "workflowId": {"__rl": true, "value": "northstarExecutiveBriefingAgent", "mode": "id"},
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "expense_id": "={{ $json.expense_id }}",
+            "risk_level": "={{ $json.risk_level || $json.safe_summary?.risk_level || 'UNKNOWN' }}",
+            "anomaly_flags": "={{ $json.anomaly_flags || $json.safe_summary?.anomaly_flags || [] }}",
+            "amount": "={{ $json.amount ?? $json.safe_summary?.amount ?? null }}",
+            "category": "={{ $json.category || $json.safe_summary?.category || '' }}",
+            "employee_name": "={{ $json.employee_name || $json.safe_summary?.employee_name || '' }}",
+            "routing_reason": "={{ $json.routing_reason || ('Routed to ' + ($json.target_role || 'human review')) }}",
+            "target_role": "={{ $json.target_role }}",
+            "correlation_id": "={{ $('Normalize Approval Context').item.json.correlation_id }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "mode": "each",
+        "options": {"waitForSubWorkflow": true}
+      },
+      "id": "20000000-0000-4000-8000-000000000021",
+      "name": "Generate Executive Briefing",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [480, -160],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {"assignments": [
+          {"id": "20-merge-notification", "name": "notification_id", "value": "={{ $('Prepare Initial Notification').item.json.notification_id }}", "type": "string"},
+          {"id": "20-merge-outbox", "name": "outbox_event_id", "value": "={{ $('Prepare Initial Notification').item.json.outbox_event_id }}", "type": "string"},
+          {"id": "20-merge-worker", "name": "worker_id", "value": "={{ $('Prepare Initial Notification').item.json.worker_id }}", "type": "string"},
+          {"id": "20-merge-claimed", "name": "already_claimed", "value": "={{ $('Prepare Initial Notification').item.json.already_claimed }}", "type": "boolean"},
+          {"id": "20-merge-task", "name": "task_id", "value": "={{ $('Prepare Initial Notification').item.json.task_id }}", "type": "string"},
+          {"id": "20-merge-type", "name": "type", "value": "={{ $('Prepare Initial Notification').item.json.type }}", "type": "string"},
+          {"id": "20-merge-level", "name": "escalation_level", "value": "={{ $('Prepare Initial Notification').item.json.escalation_level }}", "type": "number"},
+          {"id": "20-merge-status", "name": "status", "value": "={{ $('Prepare Initial Notification').item.json.status }}", "type": "string"},
+          {"id": "20-merge-target", "name": "target_role", "value": "={{ $('Prepare Initial Notification').item.json.target_role }}", "type": "string"},
+          {"id": "20-merge-expense", "name": "expense_id", "value": "={{ $('Prepare Initial Notification').item.json.expense_id }}", "type": "string"},
+          {"id": "20-merge-approver", "name": "approver_role", "value": "={{ $('Prepare Initial Notification').item.json.approver_role }}", "type": "string"},
+          {"id": "20-merge-risk", "name": "risk_level", "value": "={{ $('Prepare Initial Notification').item.json.risk_level }}", "type": "string"},
+          {"id": "20-merge-due", "name": "due_at", "value": "={{ $('Prepare Initial Notification').item.json.due_at }}", "type": "string"},
+          {"id": "20-merge-summary", "name": "safe_summary", "value": "={{ $('Prepare Initial Notification').item.json.safe_summary }}", "type": "object"},
+          {"id": "20-merge-briefing", "name": "executive_summary", "value": "={{ $json.executive_summary || '' }}", "type": "string"}
+        ]},
+        "options": {}
+      },
+      "id": "20000000-0000-4000-8000-000000000022",
+      "name": "Merge Briefing Into Notification",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [720, -160]
+    },
+    {
+      "parameters": {
+        "source": "database",
         "workflowId": {"__rl": true, "value": "northstarApprovalNotificationService", "mode": "id"},
         "workflowInputs": {"mappingMode": "defineBelow", "value": {}, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": true},
         "mode": "each",
@@ -143,7 +202,7 @@
       "name": "Send Initial Approval Notification",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
-      "position": [480, -160]
+      "position": [960, -160]
     },
     {
       "parameters": {
@@ -154,7 +213,7 @@
       "name": "Check State Before Wait",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [720, -160]
+      "position": [1200, -160]
     },
     {
       "parameters": {
@@ -169,7 +228,7 @@
       "name": "Already Terminal Before Wait",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [960, -160]
+      "position": [1440, -160]
     },
     {
       "parameters": {"resume": "webhook", "httpMethod": "POST", "responseMode": "onReceived", "options": {}},
@@ -177,7 +236,7 @@
       "name": "Wait for Human Decision",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
-      "position": [1200, -40],
+      "position": [1680, -40],
       "webhookId": "northstar-approval-wait"
     },
     {
@@ -189,7 +248,7 @@
       "name": "Fetch Final Approval State",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1440, -160]
+      "position": [1920, -160]
     },
     {
       "parameters": {
@@ -204,7 +263,7 @@
       "name": "Persisted State Is Terminal",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [1680, -160]
+      "position": [2160, -160]
     },
     {
       "parameters": {
@@ -220,7 +279,7 @@
       "name": "Mark Orchestration Completed",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1920, -280]
+      "position": [2400, -280]
     },
     {
       "parameters": {
@@ -238,7 +297,7 @@
       "name": "Reserve Completion Notification",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2160, -280]
+      "position": [2640, -280]
     },
     {
       "parameters": {
@@ -264,7 +323,7 @@
       "name": "Prepare Completion Notification",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [2400, -280]
+      "position": [2880, -280]
     },
     {
       "parameters": {
@@ -278,7 +337,7 @@
       "name": "Send Completion Notification",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
-      "position": [2640, -280]
+      "position": [3120, -280]
     },
     {
       "parameters": {"assignments": {"assignments": [{"id": "20-end", "name": "orchestration_result", "value": "COMPLETED", "type": "string"}]}, "options": {}},
@@ -286,7 +345,7 @@
       "name": "Orchestration Complete",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [2880, -280]
+      "position": [3360, -280]
     },
     {
       "parameters": {"assignments": {"assignments": [{"id": "20-stop", "name": "orchestration_result", "value": "PENDING_STATE_NOT_COMPLETED", "type": "string"}]}, "options": {}},
@@ -294,7 +353,7 @@
       "name": "Stop Without Fabricating Completion",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [1920, 40]
+      "position": [2400, 40]
     }
   ],
   "pinData": {},
@@ -306,7 +365,9 @@
     "Register n8n Orchestration Metadata": {"main": [[{"node": "Registration Allows Wait", "type": "main", "index": 0}]]},
     "Registration Allows Wait": {"main": [[{"node": "Reserve Initial Notification", "type": "main", "index": 0}], [{"node": "Fetch Final Approval State", "type": "main", "index": 0}]]},
     "Reserve Initial Notification": {"main": [[{"node": "Prepare Initial Notification", "type": "main", "index": 0}]]},
-    "Prepare Initial Notification": {"main": [[{"node": "Send Initial Approval Notification", "type": "main", "index": 0}]]},
+    "Prepare Initial Notification": {"main": [[{"node": "Generate Executive Briefing", "type": "main", "index": 0}]]},
+    "Generate Executive Briefing": {"main": [[{"node": "Merge Briefing Into Notification", "type": "main", "index": 0}]]},
+    "Merge Briefing Into Notification": {"main": [[{"node": "Send Initial Approval Notification", "type": "main", "index": 0}]]},
     "Send Initial Approval Notification": {"main": [[{"node": "Check State Before Wait", "type": "main", "index": 0}]]},
     "Check State Before Wait": {"main": [[{"node": "Already Terminal Before Wait", "type": "main", "index": 0}]]},
     "Already Terminal Before Wait": {"main": [[{"node": "Fetch Final Approval State", "type": "main", "index": 0}], [{"node": "Wait for Human Decision", "type": "main", "index": 0}]]},

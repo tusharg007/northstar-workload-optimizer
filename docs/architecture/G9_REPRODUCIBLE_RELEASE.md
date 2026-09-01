@@ -77,7 +77,7 @@ The final recovery verification produced these exact results:
 - PostgreSQL: 134 passed, 1 skipped.
 - Gate 5 FAST and PostgreSQL: 37/37 each.
 - MCP FAST: 17/17; MCP PostgreSQL+n8n stdio: 16/16.
-- n8n bootstrap and restart inventory: exactly 10 workflows.
+- n8n bootstrap and restart inventory: exactly 13 workflows.
 - Metabase bootstrap and restart inventory: exactly 36 questions and five dashboards.
 - Alembic: `20260813_0006`; both zero-volume starts and the whole-stack persistence restart passed.
 - An approval execution remained `WAITING` across an n8n-only restart, then reached `APPROVED` and `COMPLETED` with immutable human evidence, a `DELIVERED` resume outbox, and provenance `PASS`.

@@ -6,6 +6,7 @@ import {
   PlusCircle,
   ClipboardCheck,
   BookOpen,
+  BarChart3,
   Activity,
   Star,
   Menu,
@@ -20,6 +21,7 @@ const NAV_ITEMS = [
   { to: '/submit', icon: PlusCircle, label: 'Submit Expense' },
   { to: '/approvals', icon: ClipboardCheck, label: 'Approvals' },
   { to: '/context', icon: BookOpen, label: 'Governed Context' },
+  { to: '/analytics', icon: BarChart3, label: 'Analytics' },
   { to: '/health', icon: Activity, label: 'System Health' },
 ];
 
@@ -37,6 +39,7 @@ export default function DashboardLayout() {
     else if (path.startsWith('/approvals')) crumbs.push({ label: 'Approvals', to: '/approvals' });
     else if (path.startsWith('/expenses/')) crumbs.push({ label: 'Expense Detail', to: path });
     else if (path.startsWith('/context')) crumbs.push({ label: 'Governed Context', to: '/context' });
+    else if (path.startsWith('/analytics')) crumbs.push({ label: 'Analytics', to: '/analytics' });
     else if (path.startsWith('/health')) crumbs.push({ label: 'System Health', to: '/health' });
     
     return crumbs;

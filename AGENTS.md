@@ -19,7 +19,7 @@
 
 - `automation/`: deterministic expense engines and policy manifest.
 - `app/`: API, persistence, context, provenance, approvals, and reliability.
-- `n8n/workflows/`: exactly ten portable workflow definitions with stable IDs.
+- `n8n/workflows/`: exactly thirteen portable workflow definitions with stable IDs.
 - `mcp_server/`: governed interface adapter, tools, resources, and prompt.
 - `metabase/` and `observability/`: read-only analytics bootstrap and SQL.
 - `evals/`: immutable versioned datasets, baselines, runner, and reports.
@@ -44,7 +44,7 @@ PostgreSQL checks require `NORTHSTAR_TEST_POSTGRES_URL` and `NORTHSTAR_EVAL_POST
 - Lock validates and installs in a fresh Python 3.13.9 environment.
 - `compileall`, `pip check`, SQLite and PostgreSQL suites pass.
 - Gate 5 FAST/PostgreSQL and MCP FAST/stdio evaluations pass.
-- n8n validator reports exactly 10 workflows; Metabase reports 36 questions and 5 dashboards.
+- n8n validator reports exactly 13 workflows; Metabase reports 36 questions and 5 dashboards.
 - Application image is non-root and contains no `.env`, `.git`, local DB, or mutable runtime profile.
 - Fresh stack, restart persistence, and fresh-volume rebuild pass.
 - `git diff --check` passes and no secret or generated report is staged.

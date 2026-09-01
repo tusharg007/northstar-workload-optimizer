@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from uuid import uuid4
 from pathlib import Path
 
@@ -31,14 +32,14 @@ def _serialized(filename: str) -> str:
 
 def test_all_workflow_exports_parse_and_pass_validator() -> None:
     workflows = _workflows()
-    assert len(workflows) == 10
+    assert len(workflows) == 13
     assert validate_workflows(workflows) == []
 
 
 def test_workflow_ids_and_names_are_unique() -> None:
     workflows = _workflows().values()
-    assert len({workflow["id"] for workflow in workflows}) == 10
-    assert len({workflow["name"] for workflow in workflows}) == 10
+    assert len({workflow["id"] for workflow in workflows}) == 13
+    assert len({workflow["name"] for workflow in workflows}) == 13
 
 
 def test_public_webhook_contracts_are_frozen() -> None:
@@ -50,7 +51,12 @@ def test_public_webhook_contracts_are_frozen() -> None:
                 paths[node["parameters"]["path"]] = node["parameters"][
                     "httpMethod"
                 ]
-    assert paths == {"northstar-expense": "POST", "northstar-approval": "POST"}
+    assert paths == {
+        "northstar-expense": "POST",
+        "northstar-approval": "POST",
+        "northstar-policy-query": "POST",
+        "northstar-forensic-audit": "POST",
+    }
 
 
 def test_modular_workflow_references_resolve_to_stable_ids() -> None:
@@ -69,6 +75,7 @@ def test_modular_workflow_references_resolve_to_stable_ids() -> None:
         "northstarApprovalOrchestrator",
         "northstarApprovalNotificationService",
         "northstarReliabilityDispatcher",
+        "northstarExecutiveBriefingAgent",
     }
     assert referenced <= ids
 
@@ -152,7 +159,7 @@ def test_response_nodes_return_json_status_and_correlation_header() -> None:
         assert "correlation_id" in headers["x-correlation-id"]
 
 
-def test_no_env_secrets_credentials_code_or_database_nodes() -> None:
+def test_no_unapproved_env_secrets_credentials_code_or_database_nodes() -> None:
     forbidden_types = {
         "n8n-nodes-base.code",
         "n8n-nodes-base.executeCommand",
@@ -161,7 +168,17 @@ def test_no_env_secrets_credentials_code_or_database_nodes() -> None:
     for path in WORKFLOW_DIR.glob("*.json"):
         text = path.read_text(encoding="utf-8")
         workflow = json.loads(text)
-        assert "$env" not in text
+        env_refs = set(re.findall(r"\$env\.([A-Z][A-Z0-9_]*)", text))
+        allowed = (
+            {"OPENAI_API_KEY", "OPENAI_API_BASE"}
+            if path.name in {
+                "25_executive_briefing_agent.json",
+                "30_policy_copilot.json",
+                "31_forensic_audit_agent.json",
+            }
+            else set()
+        )
+        assert env_refs <= allowed
         assert all("credentials" not in node for node in workflow["nodes"])
         assert forbidden_types.isdisjoint(
             {node["type"] for node in workflow["nodes"]}
@@ -222,6 +239,59 @@ def test_gate3b_dispatcher_replay_and_notification_idempotency_contracts() -> No
     # n8n 2.22.6 may return either status for an idempotent duplicate Wait resume.
     assert "[400, 409].includes" in approval
     assert "[400, 409].includes" in dispatcher
+
+
+def test_advisory_ai_workflows_preserve_deterministic_authority() -> None:
+    workflows = _workflows()
+    ai_files = (
+        "25_executive_briefing_agent.json",
+        "30_policy_copilot.json",
+        "31_forensic_audit_agent.json",
+    )
+    for filename in ai_files:
+        workflow = workflows[filename]
+        assert workflow["id"].startswith("northstar")
+        assert workflow["settings"]["errorWorkflow"] == "northstarGlobalErrorHandler"
+        http_nodes = [
+            node
+            for node in workflow["nodes"]
+            if node["type"] == "n8n-nodes-base.httpRequest"
+        ]
+        assert http_nodes
+        for node in http_nodes:
+            headers = {
+                entry["name"].lower()
+                for entry in node["parameters"]["headerParameters"]["parameters"]
+            }
+            assert "x-correlation-id" in headers
+
+    serialized = " ".join(_serialized(filename) for filename in ai_files)
+    assert "Do NOT recommend approval or rejection" in serialized
+    assert "Never approve or reject expenses" in serialized
+    assert "Do NOT make financial recommendations" in serialized
+    assert "/api/expenses/process" not in serialized
+    assert "/decision" not in serialized
+
+
+def test_executive_briefing_failure_degrades_to_notification_delivery() -> None:
+    orchestrator = _workflows()["20_approval_orchestrator.json"]
+    nodes = {node["name"]: node for node in orchestrator["nodes"]}
+    briefing = nodes["Generate Executive Briefing"]
+    assert briefing["type"] == "n8n-nodes-base.executeWorkflow"
+    assert briefing["parameters"]["workflowId"]["value"] == (
+        "northstarExecutiveBriefingAgent"
+    )
+    assert briefing["parameters"]["options"]["waitForSubWorkflow"] is True
+    assert briefing["onError"] == "continueRegularOutput"
+    assert orchestrator["connections"]["Prepare Initial Notification"]["main"][0][0][
+        "node"
+    ] == "Generate Executive Briefing"
+    assert orchestrator["connections"]["Generate Executive Briefing"]["main"][0][0][
+        "node"
+    ] == "Merge Briefing Into Notification"
+    assert orchestrator["connections"]["Merge Briefing Into Notification"]["main"][0][0][
+        "node"
+    ] == "Send Initial Approval Notification"
 
 
 @pytest.mark.skipif(

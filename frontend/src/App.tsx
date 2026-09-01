@@ -7,6 +7,7 @@ import SubmitExpense from './pages/SubmitExpense';
 import Approvals from './pages/Approvals';
 import ExpenseDetail from './pages/ExpenseDetail';
 import ContextExplorer from './pages/ContextExplorer';
+import Analytics from './pages/Analytics';
 import SystemHealth from './pages/SystemHealth';
 
 export default function App() {
@@ -19,6 +20,7 @@ export default function App() {
           <Route path="/approvals" element={<Approvals />} />
           <Route path="/expenses/:id" element={<ExpenseDetail />} />
           <Route path="/context" element={<ContextExplorer />} />
+          <Route path="/analytics" element={<Analytics />} />
           <Route path="/health" element={<SystemHealth />} />
         </Route>
       </Routes>

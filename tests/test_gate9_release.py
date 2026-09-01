@@ -62,7 +62,7 @@ def test_compose_release_boundaries() -> None:
 
 def test_workflow_bootstrap_is_bounded_and_uses_service_dns() -> None:
     bootstrap = read("infra/docker/n8n-bootstrap.sh")
-    assert "EXPECTED=10" in bootstrap
+    assert "EXPECTED=13" in bootstrap
     assert "http://api:8000" in bootstrap
     assert "http://notification-sink:9010" in bootstrap
     assert bootstrap.count("northstar") >= 11

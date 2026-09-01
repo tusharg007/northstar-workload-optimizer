@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <body style="margin:0;background:#f3f4f6;font-family:Arial,sans-serif;color:#111827;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="padding:32px 16px;background:#f3f4f6;">
+      <tr><td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
+          <tr><td style="padding:24px 28px;background:#312e81;color:#ffffff;">
+            <div style="font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#c7d2fe;">North Star</div>
+            <h1 style="margin:8px 0 0;font-size:24px;">Expense Decision Completed</h1>
+          </td></tr>
+          <tr><td style="padding:28px;">
+            <p style="margin:0 0 20px;color:#4b5563;line-height:1.6;">The human review for expense <strong>{{ expense_id }}</strong> is complete.</p>
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;border:1px solid #e5e7eb;font-size:14px;">
+              <tr><td style="padding:10px 12px;background:#f9fafb;font-weight:700;width:38%;">Decision</td><td style="padding:10px 12px;font-weight:700;">{{ decision }}</td></tr>
+              <tr><td style="padding:10px 12px;background:#f9fafb;font-weight:700;">Reviewer</td><td style="padding:10px 12px;">{{ reviewer_name }}</td></tr>
+              <tr><td style="padding:10px 12px;background:#f9fafb;font-weight:700;">Comment</td><td style="padding:10px 12px;">{{ decision_comment }}</td></tr>
+              <tr><td style="padding:10px 12px;background:#f9fafb;font-weight:700;">Timestamp</td><td style="padding:10px 12px;">{{ decision_timestamp }}</td></tr>
+              <tr><td style="padding:10px 12px;background:#f9fafb;font-weight:700;">Amount</td><td style="padding:10px 12px;">{{ amount | default('Not provided', true) }} {{ currency | default('', true) }}</td></tr>
+              <tr><td style="padding:10px 12px;background:#f9fafb;font-weight:700;">Category</td><td style="padding:10px 12px;">{{ category | default('Not provided', true) }}</td></tr>
+            </table>
+            <div style="margin-top:28px;text-align:center;">
+              <a href="{{ frontend_url }}/expenses/{{ expense_id }}" style="display:inline-block;padding:13px 24px;border-radius:8px;background:#4f46e5;color:#ffffff;text-decoration:none;font-weight:700;">View Expense</a>
+            </div>
+          </td></tr>
+          <tr><td style="padding:18px 28px;background:#f9fafb;color:#6b7280;font-size:12px;text-align:center;border-top:1px solid #e5e7eb;">This is an automated notification from North Star Expense Operations Platform</td></tr>
+        </table>
+      </td></tr>
+    </table>
+  </body>
+</html>

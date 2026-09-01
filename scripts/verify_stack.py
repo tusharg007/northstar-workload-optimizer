@@ -17,7 +17,7 @@ import httpx
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
-EXPECTED_WORKFLOWS = 10
+EXPECTED_WORKFLOWS = 13
 EXPECTED_QUESTIONS = 36
 EXPECTED_DASHBOARDS = 5
 EXPECTED_ALEMBIC_HEAD = "20260813_0006"
@@ -224,8 +224,8 @@ def main() -> int:
             require(len(policies.json()) > 0, "governed context registry is empty")
             print("PASS: governed context", flush=True)
             workflows = workflow_count(args.project)
-            require(workflows == EXPECTED_WORKFLOWS, f"expected 10 workflows, found {workflows}")
-            print("PASS: 10 n8n workflows", flush=True)
+            require(workflows == EXPECTED_WORKFLOWS, f"expected 13 workflows, found {workflows}")
+            print("PASS: 13 n8n workflows", flush=True)
             questions, dashboards = wait_metabase_inventory(metabase, email, password, args.wait_seconds)
             print("PASS: 36 Metabase questions / 5 dashboards", flush=True)
             revision = database_contract()

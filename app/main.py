@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import json
 import os
 from pathlib import Path
 import time
@@ -10,6 +12,9 @@ from typing import Annotated, Literal
 
 from fastapi import FastAPI, Header, HTTPException, Query, Response
 from pydantic import AnyHttpUrl, BaseModel, Field
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
+from starlette.responses import StreamingResponse
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -140,9 +145,74 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
     )
     application.state.store = store
 
+    _event_subscribers: list[asyncio.Queue[dict[str, object]]] = []
+    _event_subscriber_loops: dict[
+        asyncio.Queue[dict[str, object]], asyncio.AbstractEventLoop
+    ] = {}
+
+    def _remove_event_subscriber(
+        queue: asyncio.Queue[dict[str, object]],
+    ) -> None:
+        if queue in _event_subscribers:
+            _event_subscribers.remove(queue)
+        _event_subscriber_loops.pop(queue, None)
+
+    def _enqueue_event(
+        queue: asyncio.Queue[dict[str, object]], event: dict[str, object]
+    ) -> None:
+        try:
+            queue.put_nowait(event)
+        except asyncio.QueueFull:
+            # Keep slow clients bounded and favor the freshest state signal.
+            try:
+                queue.get_nowait()
+            except asyncio.QueueEmpty:
+                pass
+            queue.put_nowait(event)
+
+    async def _event_generator(queue: asyncio.Queue[dict[str, object]]):
+        try:
+            while True:
+                try:
+                    data = await asyncio.wait_for(queue.get(), timeout=30.0)
+                    yield f"data: {json.dumps(data)}\n\n"
+                except asyncio.TimeoutError:
+                    yield ": keepalive\n\n"
+        except asyncio.CancelledError:
+            return
+        finally:
+            _remove_event_subscriber(queue)
+
+    def _broadcast_event(event_type: str, data: dict[str, object]) -> None:
+        event: dict[str, object] = {"type": event_type, **data}
+        for queue in tuple(_event_subscribers):
+            loop = _event_subscriber_loops.get(queue)
+            if loop is not None and loop.is_running():
+                loop.call_soon_threadsafe(_enqueue_event, queue, event)
+            else:
+                _enqueue_event(queue, event)
+
+    application.state.event_subscribers = _event_subscribers
+    application.state.event_generator = _event_generator
+    application.state.broadcast_event = _broadcast_event
+
     @application.get("/health")
-    def health() -> dict[str, str]:
-        return {"status": "ok", "service": "northstar"}
+    def health(response: Response) -> dict[str, str]:
+        try:
+            with store.database.engine.connect() as connection:
+                connection.execute(text("SELECT 1"))
+        except SQLAlchemyError:
+            response.status_code = 503
+            return {
+                "status": "error",
+                "service": "northstar",
+                "database": "disconnected",
+            }
+        return {
+            "status": "ok",
+            "service": "northstar",
+            "database": "connected",
+        }
 
     def context_call(operation):
         try:
@@ -230,7 +300,12 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
                 headers={"X-Correlation-ID": exc.correlation_id},
             ) from exc
         response.headers["X-Correlation-ID"] = outcome.correlation_id
-        return _public_state(outcome.state)
+        state = _public_state(outcome.state)
+        _broadcast_event(
+            "expense_created",
+            {"expense_id": state["expense_id"], "status": state["status"]},
+        )
+        return state
 
     @application.get("/api/expenses/{expense_id}/explanation")
     def explain_expense(expense_id: str) -> dict:
@@ -317,7 +392,12 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         if state is None:
             raise HTTPException(status_code=404, detail="Expense not found")
-        return _public_state(state)
+        public_state = _public_state(state)
+        _broadcast_event(
+            "expense_updated",
+            {"expense_id": expense_id, "status": public_state["status"]},
+        )
+        return public_state
 
     # Trusted-network-only integration endpoints. Authentication is deferred to
     # the security gate; none of these values are included in public responses.
@@ -513,6 +593,20 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
     @application.get("/api/internal/workflow-failures")
     def list_workflow_failures(status: str | None = Query(default=None)) -> list[dict]:
         return store.outbox.workflow_failures(status)
+
+    @application.get("/api/events/stream")
+    async def event_stream() -> StreamingResponse:
+        queue: asyncio.Queue[dict[str, object]] = asyncio.Queue(maxsize=100)
+        _event_subscribers.append(queue)
+        _event_subscriber_loops[queue] = asyncio.get_running_loop()
+        return StreamingResponse(
+            _event_generator(queue),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no",
+            },
+        )
 
     return application
 

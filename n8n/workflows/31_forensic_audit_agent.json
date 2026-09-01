@@ -1,0 +1,188 @@
+{
+  "id": "northstarForensicAuditAgent",
+  "name": "North Star | 31 Forensic Audit Agent",
+  "nodes": [
+    {
+      "parameters": {"inputSource": "passthrough"},
+      "id": "31000000-0000-4000-8000-000000000001",
+      "name": "Audit Input",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [-960, -100]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "northstar-forensic-audit",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "31000000-0000-4000-8000-000000000002",
+      "name": "Audit Report Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-960, 100],
+      "webhookId": "northstar-forensic-audit"
+    },
+    {
+      "parameters": {
+        "assignments": {"assignments": [
+          {"id": "31-input-expense", "name": "expense_id", "value": "={{ $json.expense_id || $json.body?.expense_id || '' }}", "type": "string"},
+          {"id": "31-input-correlation", "name": "correlation_id", "value": "={{ $json.correlation_id || $json.headers?.['x-correlation-id'] || ('northstar-audit-' + $execution.id) }}", "type": "string"}
+        ]},
+        "options": {}
+      },
+      "id": "31000000-0000-4000-8000-000000000011",
+      "name": "Normalize Audit Input",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [-720, 0]
+    },
+    {
+      "parameters": {
+        "url": "={{ 'http://127.0.0.1:8000/api/expenses/' + encodeURIComponent($json.expense_id) }}",
+        "sendHeaders": true,
+        "headerParameters": {"parameters": [
+          {"name": "X-Correlation-ID", "value": "={{ $json.correlation_id }}"}
+        ]},
+        "options": {"timeout": 5000, "response": {"response": {"fullResponse": true, "neverError": false, "responseFormat": "json"}}}
+      },
+      "id": "31000000-0000-4000-8000-000000000003",
+      "name": "Fetch Expense",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-480, 0]
+    },
+    {
+      "parameters": {
+        "url": "={{ 'http://127.0.0.1:8000/api/expenses/' + encodeURIComponent($('Fetch Expense').item.json.body.expense_id) + '/explanation' }}",
+        "sendHeaders": true,
+        "headerParameters": {"parameters": [
+          {"name": "X-Correlation-ID", "value": "={{ $('Normalize Audit Input').item.json.correlation_id }}"}
+        ]},
+        "options": {"timeout": 5000, "response": {"response": {"fullResponse": true, "neverError": false, "responseFormat": "json"}}}
+      },
+      "id": "31000000-0000-4000-8000-000000000004",
+      "name": "Fetch Explanation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-240, 0]
+    },
+    {
+      "parameters": {
+        "url": "={{ 'http://127.0.0.1:8000/api/expenses/' + encodeURIComponent($('Fetch Expense').item.json.body.expense_id) + '/lineage' }}",
+        "sendHeaders": true,
+        "headerParameters": {"parameters": [
+          {"name": "X-Correlation-ID", "value": "={{ $('Normalize Audit Input').item.json.correlation_id }}"}
+        ]},
+        "options": {"timeout": 5000, "response": {"response": {"fullResponse": true, "neverError": false, "responseFormat": "json"}}}
+      },
+      "id": "31000000-0000-4000-8000-000000000005",
+      "name": "Fetch Lineage",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "url": "={{ 'http://127.0.0.1:8000/api/provenance/expenses/' + encodeURIComponent($('Fetch Expense').item.json.body.expense_id) }}",
+        "sendHeaders": true,
+        "headerParameters": {"parameters": [
+          {"name": "X-Correlation-ID", "value": "={{ $('Normalize Audit Input').item.json.correlation_id }}"}
+        ]},
+        "options": {"timeout": 5000, "response": {"response": {"fullResponse": true, "neverError": false, "responseFormat": "json"}}}
+      },
+      "id": "31000000-0000-4000-8000-000000000006",
+      "name": "Fetch Provenance",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [240, 0]
+    },
+    {
+      "parameters": {
+        "assignments": {"assignments": [
+          {"id": "31-expense", "name": "expense_id", "value": "={{ $('Fetch Expense').item.json.body.expense_id }}", "type": "string"},
+          {"id": "31-correlation", "name": "correlation_id", "value": "={{ $('Normalize Audit Input').item.json.correlation_id }}", "type": "string"},
+          {"id": "31-verified", "name": "provenance_verified", "value": "={{ $('Fetch Explanation').item.json.body?.evidence_verified === true }}", "type": "boolean"},
+          {"id": "31-prompt", "name": "prompt", "value": "={{ 'Expense Data:\n' + JSON.stringify($('Fetch Expense').item.json.body) + '\n\nRisk Explanation:\n' + JSON.stringify($('Fetch Explanation').item.json.body) + '\n\nEvent Timeline:\n' + JSON.stringify($('Fetch Lineage').item.json.body) + '\n\nDecision Provenance:\n' + JSON.stringify($('Fetch Provenance').item.json.body) }}", "type": "string"}
+        ]},
+        "options": {}
+      },
+      "id": "31000000-0000-4000-8000-000000000007",
+      "name": "Build Audit Prompt",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [480, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($env.OPENAI_API_BASE || 'https://api.openai.com').replace(/\\\/$/, '').replace(/\\\/v1$/, '') + '/v1/chat/completions' }}",
+        "sendHeaders": true,
+        "headerParameters": {"parameters": [
+          {"name": "Authorization", "value": "={{ 'Bearer ' + $env.OPENAI_API_KEY }}"},
+          {"name": "Content-Type", "value": "application/json"},
+          {"name": "X-Correlation-ID", "value": "={{ $json.correlation_id }}"}
+        ]},
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ ({ model: 'gpt-4o-mini', messages: [{ role: 'system', content: 'You are a financial compliance auditor. Given expense data, risk analysis, event timeline, and cryptographic verification, produce a structured audit memorandum with sections: Executive Summary, Timeline of Events, Risk Assessment Review, Provenance Verification, and Conclusion. Do NOT make financial recommendations.' }, { role: 'user', content: $json.prompt }], max_tokens: 1200, temperature: 0.2 }) }}",
+        "options": {"timeout": 5000, "response": {"response": {"fullResponse": true, "neverError": false, "responseFormat": "json"}}}
+      },
+      "id": "31000000-0000-4000-8000-000000000008",
+      "name": "Generate Audit Report",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 0]
+    },
+    {
+      "parameters": {
+        "assignments": {"assignments": [
+          {"id": "31-report", "name": "audit_report", "value": "={{ $json.body?.choices?.[0]?.message?.content || '' }}", "type": "string"},
+          {"id": "31-report-expense", "name": "expense_id", "value": "={{ $('Build Audit Prompt').item.json.expense_id }}", "type": "string"},
+          {"id": "31-report-verified", "name": "provenance_verified", "value": "={{ $('Build Audit Prompt').item.json.provenance_verified }}", "type": "boolean"}
+        ]},
+        "options": {}
+      },
+      "id": "31000000-0000-4000-8000-000000000009",
+      "name": "Extract Report",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [960, 0]
+    },
+    {
+      "parameters": {
+        "assignments": {"assignments": [
+          {"id": "31-return-expense", "name": "expense_id", "value": "={{ $json.expense_id }}", "type": "string"},
+          {"id": "31-return-report", "name": "audit_report", "value": "={{ $json.audit_report }}", "type": "string"},
+          {"id": "31-return-verified", "name": "provenance_verified", "value": "={{ $json.provenance_verified }}", "type": "boolean"}
+        ]},
+        "options": {}
+      },
+      "id": "31000000-0000-4000-8000-000000000010",
+      "name": "Return Audit",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1200, 0]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Audit Input": {"main": [[{"node": "Normalize Audit Input", "type": "main", "index": 0}]]},
+    "Audit Report Webhook": {"main": [[{"node": "Normalize Audit Input", "type": "main", "index": 0}]]},
+    "Normalize Audit Input": {"main": [[{"node": "Fetch Expense", "type": "main", "index": 0}]]},
+    "Fetch Expense": {"main": [[{"node": "Fetch Explanation", "type": "main", "index": 0}]]},
+    "Fetch Explanation": {"main": [[{"node": "Fetch Lineage", "type": "main", "index": 0}]]},
+    "Fetch Lineage": {"main": [[{"node": "Fetch Provenance", "type": "main", "index": 0}]]},
+    "Fetch Provenance": {"main": [[{"node": "Build Audit Prompt", "type": "main", "index": 0}]]},
+    "Build Audit Prompt": {"main": [[{"node": "Generate Audit Report", "type": "main", "index": 0}]]},
+    "Generate Audit Report": {"main": [[{"node": "Extract Report", "type": "main", "index": 0}]]},
+    "Extract Report": {"main": [[{"node": "Return Audit", "type": "main", "index": 0}]]}
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1", "errorWorkflow": "northstarGlobalErrorHandler"},
+  "versionId": "31000000-0000-4000-8000-000000000099",
+  "meta": {"templateCredsSetupCompleted": true},
+  "tags": []
+}

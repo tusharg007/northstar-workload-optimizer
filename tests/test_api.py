@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from pathlib import Path
 
@@ -31,7 +32,67 @@ def client(tmp_path: Path) -> TestClient:
 def test_health(client: TestClient) -> None:
     response = client.get("/health")
     assert response.status_code == 200
-    assert response.json() == {"status": "ok", "service": "northstar"}
+    assert response.json() == {
+        "status": "ok",
+        "service": "northstar",
+        "database": "connected",
+    }
+
+
+def test_event_stream_headers_payload_and_cleanup(client: TestClient) -> None:
+    async def scenario() -> None:
+        route = next(
+            route
+            for route in client.app.routes
+            if getattr(route, "path", None) == "/api/events/stream"
+        )
+        response = await route.endpoint()
+        queue = client.app.state.event_subscribers[-1]
+        try:
+            assert response.media_type == "text/event-stream"
+            assert response.headers["cache-control"] == "no-cache"
+            assert response.headers["x-accel-buffering"] == "no"
+
+            client.app.state.broadcast_event("probe", {"expense_id": "SSE-1"})
+            chunk = await anext(response.body_iterator)
+            assert chunk == 'data: {"type": "probe", "expense_id": "SSE-1"}\n\n'
+        finally:
+            await response.body_iterator.aclose()
+        assert queue not in client.app.state.event_subscribers
+
+    asyncio.run(scenario())
+
+
+def test_process_and_decision_broadcast_state_events(
+    client: TestClient, normal_expense: dict
+) -> None:
+    queue: asyncio.Queue[dict[str, object]] = asyncio.Queue()
+    client.app.state.event_subscribers.append(queue)
+    try:
+        created = client.post("/api/expenses/process", json=normal_expense)
+        created.raise_for_status()
+        assert queue.get_nowait() == {
+            "type": "expense_created",
+            "expense_id": normal_expense["expense_id"],
+            "status": "PENDING_APPROVAL",
+        }
+
+        updated = client.post(
+            f"/api/expenses/{normal_expense['expense_id']}/decision",
+            json={
+                "decision": "approve",
+                "approver": "Finance Director",
+                "comment": "SSE verification",
+            },
+        )
+        updated.raise_for_status()
+        assert queue.get_nowait() == {
+            "type": "expense_updated",
+            "expense_id": normal_expense["expense_id"],
+            "status": "APPROVED",
+        }
+    finally:
+        client.app.state.event_subscribers.remove(queue)
 
 
 def test_successful_expense_processing(
