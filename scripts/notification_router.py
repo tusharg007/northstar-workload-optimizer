@@ -222,6 +222,8 @@ class NotificationRouter:
         summary = nested_summary if isinstance(nested_summary, str) else ""
         if not summary:
             summary = str(context.get("routing_reason") or "")
+        if context.get("executive_summary"):
+            summary += "\nAI advisory briefing: " + str(context["executive_summary"])[:1500]
 
         blocks = [
             {

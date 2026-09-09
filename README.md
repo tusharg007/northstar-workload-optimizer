@@ -1,6 +1,6 @@
 # North Star — Governed Expense Operations Platform
 
-> **An enterprise-grade expense automation platform demonstrating deterministic policy enforcement, durable n8n orchestration, AI sub-agents with guardrails, multi-channel notifications (Email + Slack), Human-in-the-Loop approvals, immutable SHA-256 decision provenance, and a polished React operations dashboard.**
+> **A reference-grade expense automation platform demonstrating deterministic policy enforcement, durable n8n orchestration, guarded AI assistance, optional Email/Slack delivery, Human-in-the-Loop approvals, immutable SHA-256 decision provenance, and a polished React operations dashboard.**
 
 [![CI](https://github.com/tusharg007/northstar-workload-optimizer/actions/workflows/ci.yml/badge.svg)](https://github.com/tusharg007/northstar-workload-optimizer/actions/workflows/ci.yml)
 ![Python 3.13](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)
@@ -17,6 +17,7 @@
 ## Table of Contents
 
 - [What This Is](#what-this-is)
+- [Verified Release Status](#verified-release-status)
 - [Architecture](#architecture)
 - [Key Features](#key-features)
 - [Tech Stack](#tech-stack)
@@ -45,7 +46,7 @@ North Star is a full-stack expense approval automation platform built to demonst
 - **Deterministic policy enforcement** — FastAPI owns all validation, risk scoring, and routing. No LLM decides financial outcomes.
 - **Durable workflow orchestration** — 13 n8n workflows manage multi-step approval lifecycles with real `Wait` nodes.
 - **AI sub-agents with guardrails** — Executive Briefing Agent, Policy Compliance Copilot, and Forensic Audit Agent operate in strictly advisory roles (Rule 9: no LLM determines financial policy).
-- **Multi-channel notifications** — Real Email (Resend) + Slack (Block Kit) with risk-based channel routing and HTML templates.
+- **Multi-channel notifications** — Optional Resend email and Slack Block Kit delivery with risk-based routing, HTML templates, and a credential-free mock fallback.
 - **Human-in-the-loop approvals** — Escalated expenses wait indefinitely until a human approves or rejects via the UI.
 - **Immutable provenance** — Every automated decision is cryptographically hashed (SHA-256) and independently verifiable.
 - **Real-time updates** — Server-Sent Events (SSE) push state changes to all connected browsers in under 1 second.
@@ -53,6 +54,28 @@ North Star is a full-stack expense approval automation platform built to demonst
 - **Professional React UI** — shadcn/ui design system, TanStack Table, dark mode, skeleton loaders, toast notifications, analytics charts.
 - **Transactional outbox** — Distributed PostgreSQL leases (`SELECT FOR UPDATE SKIP LOCKED`), exponential backoff retries, and Dead Letter Queue with operator replay.
 - **Model Context Protocol (MCP)** — 12 typed tools, 5 resources, and 1 prompt for governed AI agent integration.
+
+---
+
+## Verified Release Status
+
+The current release was re-verified locally on **2026-09-09**. Provider-specific delivery still requires the corresponding optional credential.
+
+| Gate | Result |
+|---|---|
+| Local release suite | **PASS** — 170 passed, 13 skipped |
+| PostgreSQL 16.14 suite | **PASS** — 182 passed, 1 opt-in live-runtime test skipped |
+| Deterministic evaluation, fast profile | **PASS** — 37/37 |
+| Deterministic evaluation, PostgreSQL profile | **PASS** — 37/37 |
+| MCP evaluation, fast profile | **PASS** — 17/17 |
+| MCP live stdio evaluation | **PASS** — 16/16 |
+| Negative-control evaluation | **PASS** — intentionally wrong expectation was detected |
+| Frontend type-check and production build | **PASS** |
+| Live Docker stack verification | **PASS** — API, PostgreSQL, n8n, Metabase, frontend, notification sink |
+| Analytics bootstrap | **PASS** — 36 questions, 5 dashboards, 13 read-only observability views |
+| Groq advisory paths | **PASS** — live Policy Copilot and forensic-report smoke tests |
+
+The deterministic evals measure policy, routing, provenance, MCP contracts, and safety boundaries. They do not treat LLM prose as financial authority; AI output remains advisory and may vary by model.
 
 ---
 
@@ -72,7 +95,8 @@ North Star is a full-stack expense approval automation platform built to demonst
 │   localhost:8000        │    │         localhost:5679                 │
 │                         │    │                                       │
 │ • Validation            │    │  01 Expense Intake                    │
-│ • Risk scoring (20 sigs)│    │  02 Approval Decision                 │
+│ • 5 anomaly detectors  │    │  02 Approval Decision                 │
+│ • Risk classification  │    │                                       │
 │ • Policy engine         │    │  10 Process Expense Service           │
 │ • Provenance (SHA-256)  │    │  20 Approval Orchestrator (WAIT)      │
 │ • Context registry      │    │  21 Notification Service              │
@@ -109,7 +133,7 @@ POST /webhook/northstar-expense   (n8n Workflow 01)
       ↓
 Normalize → Build Context → Call FastAPI policy engine
       ↓
-FastAPI validates + scores risk (20 signals) + determines routing
+FastAPI validates + evaluates 5 anomaly detectors + classifies risk + determines routing
       ↓
 If AUTO_APPROVED → persist + notify (email/slack) → respond
 If ESCALATED/PENDING → n8n Workflow 20 starts, reaches WAIT node
@@ -120,7 +144,7 @@ Human clicks Approve/Reject → POST /webhook/northstar-approval
       ↓
 n8n Workflow 02 records decision → resumes SAME Workflow 20 execution
       ↓
-Workflow 20 continues → AI generates executive briefing → sends notification
+Workflow 20 sends the initial advisory briefing, waits durably, then sends completion notification
       ↓
 Dashboard updates in <1s (SSE push), provenance hash verifiable ✅
 ```
@@ -130,7 +154,9 @@ Dashboard updates in <1s (SSE push), provenance hash verifiable ✅
 ## Key Features
 
 ### 🛡️ Deterministic Policy Engine
-- 20 risk signals: statistical outlier, weekend transaction, suspicious round amount, duplicate detection, missing receipt, category limit exceeded, and more
+- 5 deterministic anomaly detectors: statistical outlier, weekend transaction, suspicious round amount, duplicate marker, and high-value missing receipt
+- A sixth catalog entry deterministically maps the accumulated score to LOW, MEDIUM, HIGH, or CRITICAL
+- Policy validation warnings (for example, receipt and category-limit rules) remain distinct from anomaly signals
 - 4-tier approval routing: ≤$500 Direct Manager → ≤$2K Dept Head → ≤$5K Finance Director → >$5K VP/C-Suite
 - HIGH/CRITICAL risk auto-escalates to Finance Director + Compliance
 - All rules are versioned, certified, and content-hashed
@@ -138,7 +164,7 @@ Dashboard updates in <1s (SSE push), provenance hash verifiable ✅
 ### 🤖 AI Sub-Agents (with Guardrails)
 - **Executive Briefing Agent** — Generates 2-3 sentence natural language summaries for approval notifications
 - **Policy Copilot** — Answers employee questions about expense policies before submission, citing specific policy versions
-- **Forensic Audit Agent** — Autonomously investigates expenses: pulls lineage, verifies provenance, generates compliance memorandums
+- **Forensic Audit Agent** — Synthesizes the API-supplied expense, lineage, and provenance-verification evidence into a compliance memorandum
 - ⚠️ **Guardrail**: No AI agent determines risk scores, routing decisions, or approval outcomes (Rule 9)
 
 ### 📧 Multi-Channel Notifications
@@ -151,7 +177,7 @@ Dashboard updates in <1s (SSE push), provenance hash verifiable ✅
 - SHA-256 hash over canonical JSON evidence (policies, terms, rules, trust signals, risk scores, human decisions)
 - One-click **Verify Integrity** button recomputes and compares hashes in real-time
 - Immutable lineage timeline from intake through final decision
-- Forensic audit agent can autonomously verify provenance chains
+- The forensic report states the verification result returned by the deterministic provenance API; it does not independently decide integrity
 
 ### ⚡ Real-Time Architecture
 - **Server-Sent Events (SSE)** push expense state changes to all connected browsers
@@ -172,7 +198,7 @@ Dashboard updates in <1s (SSE push), provenance hash verifiable ✅
 | **Notifications** | Resend (Email), Slack Incoming Webhooks (Block Kit), Jinja2 HTML templates |
 | **Analytics** | Metabase (36 questions, 5 dashboards), Recharts frontend analytics |
 | **MCP Interface** | Python MCP SDK 2.0; 12 tools, 5 resources, 1 prompt |
-| **AI Integration** | OpenAI-compatible API (GPT-4o-mini / Ollama) for advisory sub-agents |
+| **AI Integration** | Groq (`openai/gpt-oss-20b`) for advisory sub-agents; credentials stay in FastAPI |
 | **Container** | Docker + Docker Compose, nginx reverse proxy, multi-stage builds |
 | **Policy Engine** | Deterministic Python rules engine (automation/) |
 
@@ -192,7 +218,7 @@ northstar-workload-optimizer/
 │   └── db/repositories/            # PostgreSQL repository implementations
 │
 ├── automation/                     # Deterministic policy engine
-│   ├── automation_flow.py          # Main processing pipeline (20 risk signals)
+│   ├── automation_flow.py          # Main deterministic processing pipeline
 │   ├── policy_manifest.py          # Policy definitions & routing tiers
 │   └── flow_design.md              # Policy-flow design notes
 │
@@ -294,8 +320,8 @@ NOTIFICATION_FROM_EMAIL=expenses@yourdomain.com
 # Add for Slack notifications
 SLACK_WEBHOOK_URL=https://hooks.slack.com/services/T.../B.../xxx
 
-# Add for AI sub-agents
-OPENAI_API_KEY=sk-...
+# Add for AI sub-agents (create a key at https://console.groq.com/keys)
+GROQ_API_KEY=gsk_...
 ```
 
 ---
@@ -339,7 +365,7 @@ OPENAI_API_KEY=sk-...
 - **Inline approval action** — approve/reject directly without navigating to Approvals page
 - **"Generate Audit Report"** — AI forensic agent produces compliance memorandum
 - Three tabs:
-  - **Overview** — payload, risk score with confidence bar, anomaly flags, routing, provenance summary
+  - **Overview** — payload, classification confidence, anomaly flags, routing, provenance summary
   - **Lineage** — visual timeline of all workflow events (intake → evaluation → decision)
   - **Provenance** — SHA-256 hash, evidence counts, **Verify Integrity** button with pass/fail result
 
@@ -359,7 +385,7 @@ OPENAI_API_KEY=sk-...
 - Health tiles for FastAPI, n8n, PostgreSQL, Metabase
 - **Dead Letter Queue** table with **Replay** buttons
 - **Run Reconciliation** trigger for outbox integrity
-- Workflow failures table with error details
+- Historical workflow-failure table with sanitized error details
 - Quick links to Swagger, n8n Editor, Metabase
 
 ### 🌙 Design System
@@ -388,7 +414,7 @@ North Star includes **13 version-controlled n8n workflow definitions**:
 | 24 | `northstarDeadLetterReplay` | Dead Letter Replay | Operator tooling for failed event replay |
 | 25 | `northstarExecutiveBriefingAgent` | **Executive Briefing Agent** | 🤖 AI generates notification summaries |
 | 30 | `northstarPolicyCopilot` | **Policy Copilot** | 🤖 AI answers employee policy questions |
-| 31 | `northstarForensicAuditAgent` | **Forensic Audit Agent** | 🤖 AI investigates and verifies provenance |
+| 31 | `northstarForensicAuditAgent` | **Forensic Audit Agent** | 🤖 AI summarizes supplied audit evidence |
 | 99 | `northstarGlobalErrorHandler` | Error Handler | Catches and sanitizes unhandled workflow errors |
 
 ---
@@ -401,9 +427,9 @@ North Star includes **13 version-controlled n8n workflow definitions**:
 |---|---|---|---|
 | **Executive Briefing** (WF 25) | Called by Workflow 20 before notifications | Generates 2-3 sentence summary explaining why an expense requires review | Cannot change risk score or routing |
 | **Policy Copilot** (WF 30) | Webhook: `/webhook/northstar-policy-query` | Answers policy questions citing certified documents and version numbers | Cannot approve/reject expenses |
-| **Forensic Auditor** (WF 31) | On-demand from Expense Detail page | Pulls lineage, verifies SHA-256 provenance, generates audit memorandum | Cannot modify any records |
+| **Forensic Auditor** (WF 31) | On-demand from Expense Detail page | Receives lineage and the API's SHA-256 verification result, then generates an audit memorandum | Cannot modify records or claim evidence not supplied |
 
-If `OPENAI_API_KEY` is not configured, AI features gracefully degrade — notifications are sent without briefings, and copilot/audit buttons show appropriate messages.
+All three advisory agents call Groq through the FastAPI adapter, so the API key is never exposed to the browser or n8n. The default model is the production `openai/gpt-oss-20b`; override it with `GROQ_MODEL` if required. If `GROQ_API_KEY` is not configured, AI features gracefully degrade — notifications continue without briefings, and copilot/audit buttons show an actionable configuration message.
 
 ---
 
@@ -463,6 +489,11 @@ GET  /api/events/stream                 SSE event stream
 POST /webhook/northstar-expense         Expense intake (→ Workflow 01)
 POST /webhook/northstar-approval        Approval decision (→ Workflow 02)
 POST /webhook/northstar-policy-query    Policy Copilot (→ Workflow 30)
+POST /webhook/northstar-forensic-audit Forensic report (→ Workflow 31)
+
+# Advisory AI adapter (internal; provider secret remains in FastAPI)
+POST /api/internal/policy-copilot/answer
+POST /api/internal/advisory-ai/generate
 
 # Health & Operations
 GET  /health                            Service health
@@ -486,10 +517,15 @@ POST /api/internal/reliability/reconcile Run reconciliation
 
 ### Step 2 — Submit a suspicious expense
 
-1. Click **Submit Expense** → click **🚨 Suspicious Software ($3,000)** preset
-2. Click **Submit Expense**
-3. **Result:** `ESCALATED` / `CRITICAL` risk / 5 anomaly flags (weekend, duplicate, missing receipt, round amount, category limit)
-4. **Why it matters:** The deterministic engine caught 5 anomalies and escalated to Finance Director + Compliance — no LLM involved
+1. Click **Submit Expense** and briefly show the four deterministic outcomes with the presets:
+   - **Coffee ($28.50):** `AUTO_APPROVED`
+   - **Travel ($640):** `PENDING_APPROVAL`
+   - **Suspicious Software ($3,000):** `ESCALATED` / `CRITICAL`
+   - **Invalid Future Date:** rejected by validation
+2. Before submitting Travel, click **Ask Policy Copilot** and ask: “For a $640 business travel expense, is a receipt required and who should approve it?” The answer is advisory and cites governed policy; it cannot approve the expense.
+3. Toggle **Receipt Attached** to show that the deterministic receipt rule is evaluated independently of the AI answer.
+4. Submit **Suspicious Software** and point out its anomaly flags and policy warnings. Exact flags can vary with the preset transaction date, but routing remains rule-driven.
+5. **Why it matters:** validation, risk classification, and routing are deterministic; the LLM only explains governed context.
 
 ### Step 3 — Approve from the UI
 
@@ -523,7 +559,7 @@ docker compose -p northstar-g9 start n8n
 
 ## MCP Server
 
-The MCP server (`mcp_server/`) exposes North Star to AI agents via Anthropic's Model Context Protocol:
+The MCP server (`mcp_server/`) exposes North Star through the open Model Context Protocol using the official Python MCP SDK 2.0:
 
 - **12 Tools:** `submit_expense`, `get_expense_status`, `list_pending_approvals`, `explain_risk`, `approve_expense`, `search_policy_context`, `get_policy_version`, `get_business_term`, `get_expense_context`, `get_decision_trace`, `get_expense_lineage`, `verify_decision_provenance`
 - **5 Resources:** Policy, Term, Context, Trace, and Lineage URI templates
@@ -552,7 +588,10 @@ uv run mcp dev mcp_server/server.py
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 # Start frontend dev server (Vite proxies to FastAPI + n8n)
-cd frontend && npm install && npm run dev
+Push-Location frontend
+npm install
+npm run dev
+Pop-Location
 # Open http://localhost:5173
 ```
 
@@ -589,6 +628,9 @@ npm run dev            # Dev server on :5173 with proxy
 # Deterministic and MCP evaluation gates
 .\.venv\Scripts\python.exe -m scripts.run_evals --profile fast
 .\.venv\Scripts\python.exe -m scripts.run_mcp_evals --profile fast
+
+# Live MCP stdio transport evaluation (requires the running stack)
+.\.venv\Scripts\python.exe -m scripts.run_mcp_evals --profile stdio
 
 # Frontend type-check and production bundle
 Push-Location frontend
@@ -631,9 +673,10 @@ RESEND_API_KEY=re_xxxxxxxxxxxx
 NOTIFICATION_FROM_EMAIL=expenses@yourdomain.com
 SLACK_WEBHOOK_URL=https://hooks.slack.com/services/T.../B.../xxx
 
-# AI Sub-Agents (optional — graceful degradation if unset)
-OPENAI_API_KEY=sk-...
-OPENAI_API_BASE=https://api.openai.com  # or http://host.docker.internal:11434/v1 for Ollama
+# AI Sub-Agents via Groq (optional — graceful degradation if unset)
+GROQ_API_KEY=gsk_...
+GROQ_MODEL=openai/gpt-oss-20b
+GROQ_API_BASE=https://api.groq.com/openai/v1
 
 # Ports (optional overrides)
 NORTHSTAR_POSTGRES_PORT=55432

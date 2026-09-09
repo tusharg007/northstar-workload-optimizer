@@ -32,11 +32,7 @@ PUBLIC_WEBHOOKS = {
     "northstar-policy-query": "POST",
     "northstar-forensic-audit": "POST",
 }
-ALLOWED_ENV_REFS = {
-    "25_executive_briefing_agent.json": {"OPENAI_API_BASE", "OPENAI_API_KEY"},
-    "30_policy_copilot.json": {"OPENAI_API_BASE", "OPENAI_API_KEY"},
-    "31_forensic_audit_agent.json": {"OPENAI_API_BASE", "OPENAI_API_KEY"},
-}
+ALLOWED_ENV_REFS: dict[str, set[str]] = {}
 SUPPORTED_NODE_TYPES = {
     "n8n-nodes-base.executeWorkflow",
     "n8n-nodes-base.errorTrigger",

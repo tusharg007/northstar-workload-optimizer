@@ -13,121 +13,341 @@
       "name": "Policy Query Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [-720, 0],
+      "position": [
+        -720,
+        0
+      ],
       "webhookId": "northstar-policy-query"
     },
     {
       "parameters": {
         "url": "http://127.0.0.1:8000/api/context/policies",
         "sendHeaders": true,
-        "headerParameters": {"parameters": [
-          {"name": "X-Correlation-ID", "value": "={{ $('Policy Query Webhook').item.json.headers?.['x-correlation-id'] || ('northstar-policy-' + $execution.id) }}"}
-        ]},
-        "options": {"timeout": 5000, "response": {"response": {"fullResponse": true, "neverError": false, "responseFormat": "json"}}}
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Correlation-ID",
+              "value": "={{ $('Policy Query Webhook').item.json.headers?.['x-correlation-id'] || ('northstar-policy-' + $execution.id) }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 5000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": false,
+              "responseFormat": "json"
+            }
+          }
+        }
       },
       "id": "30000000-0000-4000-8000-000000000002",
       "name": "Fetch All Policies",
+      "onError": "continueErrorOutput",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-480, 0]
+      "position": [
+        -480,
+        0
+      ]
     },
     {
       "parameters": {
         "url": "http://127.0.0.1:8000/api/context/terms",
         "sendHeaders": true,
-        "headerParameters": {"parameters": [
-          {"name": "X-Correlation-ID", "value": "={{ $('Policy Query Webhook').item.json.headers?.['x-correlation-id'] || ('northstar-policy-' + $execution.id) }}"}
-        ]},
-        "options": {"timeout": 5000, "response": {"response": {"fullResponse": true, "neverError": false, "responseFormat": "json"}}}
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Correlation-ID",
+              "value": "={{ $('Policy Query Webhook').item.json.headers?.['x-correlation-id'] || ('northstar-policy-' + $execution.id) }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 5000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": false,
+              "responseFormat": "json"
+            }
+          }
+        }
       },
       "id": "30000000-0000-4000-8000-000000000003",
       "name": "Fetch All Terms",
+      "onError": "continueErrorOutput",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-240, 0]
+      "position": [
+        -240,
+        0
+      ]
     },
     {
       "parameters": {
-        "assignments": {"assignments": [
-          {"id": "30-query", "name": "query", "value": "={{ $('Policy Query Webhook').item.json.body?.query || '' }}", "type": "string"},
-          {"id": "30-correlation", "name": "correlation_id", "value": "={{ $('Policy Query Webhook').item.json.headers?.['x-correlation-id'] || ('northstar-policy-' + $execution.id) }}", "type": "string"},
-          {"id": "30-prompt", "name": "prompt", "value": "={{ 'Question: ' + ($('Policy Query Webhook').item.json.body?.query || '') + '\n\nPolicies:\n' + JSON.stringify($('Fetch All Policies').item.json.body) + '\n\nTerms:\n' + JSON.stringify($('Fetch All Terms').item.json.body) }}", "type": "string"}
-        ]},
+        "assignments": {
+          "assignments": [
+            {
+              "id": "30-query",
+              "name": "query",
+              "value": "={{ $('Policy Query Webhook').item.json.body?.query || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "30-correlation",
+              "name": "correlation_id",
+              "value": "={{ $('Policy Query Webhook').item.json.headers?.['x-correlation-id'] || ('northstar-policy-' + $execution.id) }}",
+              "type": "string"
+            },
+            {
+              "id": "30-prompt",
+              "name": "prompt",
+              "value": "={{ JSON.stringify({ question: $('Policy Query Webhook').item.json.body?.query || '', policies: $('Fetch All Policies').item.json.body, terms: $('Fetch All Terms').item.json.body }) }}",
+              "type": "string"
+            }
+          ]
+        },
         "options": {}
       },
       "id": "30000000-0000-4000-8000-000000000004",
       "name": "Build Copilot Prompt",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [0, 0]
+      "position": [
+        0,
+        0
+      ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ ($env.OPENAI_API_BASE || 'https://api.openai.com').replace(/\\\/$/, '').replace(/\\\/v1$/, '') + '/v1/chat/completions' }}",
+        "url": "http://127.0.0.1:8000/api/internal/policy-copilot/answer",
         "sendHeaders": true,
-        "headerParameters": {"parameters": [
-          {"name": "Authorization", "value": "={{ 'Bearer ' + $env.OPENAI_API_KEY }}"},
-          {"name": "Content-Type", "value": "application/json"},
-          {"name": "X-Correlation-ID", "value": "={{ $json.correlation_id }}"}
-        ]},
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Correlation-ID",
+              "value": "={{ $json.correlation_id }}"
+            }
+          ]
+        },
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "={{ ({ model: 'gpt-4o-mini', messages: [{ role: 'system', content: \"You are a corporate expense policy assistant. Given the employee's question and the company's certified policies below, provide a factual answer. Always cite the specific policy name and version number. If the expense might exceed category limits, explain what approval level is required. Never approve or reject expenses.\" }, { role: 'user', content: $json.prompt }], max_tokens: 500, temperature: 0.2 }) }}",
-        "options": {"timeout": 5000, "response": {"response": {"fullResponse": true, "neverError": false, "responseFormat": "json"}}}
+        "jsonBody": "={{ { query: $('Build Copilot Prompt').item.json.query } }}",
+        "options": {
+          "timeout": 25000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
       },
       "id": "30000000-0000-4000-8000-000000000005",
       "name": "Generate Answer",
+      "onError": "continueErrorOutput",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [240, 0]
+      "position": [
+        240,
+        0
+      ]
     },
     {
       "parameters": {
-        "assignments": {"assignments": [
-          {"id": "30-answer", "name": "answer", "value": "={{ $json.body?.choices?.[0]?.message?.content || '' }}", "type": "string"},
-          {"id": "30-answer-correlation", "name": "correlation_id", "value": "={{ $('Build Copilot Prompt').item.json.correlation_id }}", "type": "string"}
-        ]},
+        "assignments": {
+          "assignments": [
+            {
+              "id": "30-answer",
+              "name": "answer",
+              "value": "={{ $json.body?.answer || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "30-message",
+              "name": "message",
+              "value": "={{ typeof $json.body?.detail === 'string' ? $json.body.detail : 'Policy Copilot could not answer this question. Please try again.' }}",
+              "type": "string"
+            },
+            {
+              "id": "30-status",
+              "name": "response_status",
+              "value": "={{ $json.body?.answer ? 200 : ($json.statusCode >= 400 ? $json.statusCode : 502) }}",
+              "type": "number"
+            },
+            {
+              "id": "30-correlation",
+              "name": "correlation_id",
+              "value": "={{ $('Build Copilot Prompt').item.json.correlation_id }}",
+              "type": "string"
+            }
+          ]
+        },
         "options": {}
       },
       "id": "30000000-0000-4000-8000-000000000006",
       "name": "Extract Answer",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [480, 0]
+      "position": [
+        480,
+        0
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ ({ answer: $json.answer, cited_policies: [] }) }}",
+        "responseBody": "={{ $json.answer ? { answer: $json.answer, cited_policies: [] } : { message: $json.message } }}",
         "options": {
-          "responseCode": 200,
-          "responseHeaders": {"entries": [
-            {"name": "Content-Type", "value": "application/json"},
-            {"name": "X-Correlation-ID", "value": "={{ $json.correlation_id }}"}
-          ]}
+          "responseCode": "={{ $json.response_status }}",
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "X-Correlation-ID",
+                "value": "={{ $json.correlation_id }}"
+              }
+            ]
+          }
         }
       },
       "id": "30000000-0000-4000-8000-000000000007",
       "name": "Respond to Webhook",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
-      "position": [720, 0]
+      "position": [
+        720,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { message: 'Policy Copilot could not reach its policy context or AI provider. Check the n8n execution for connection, credentials, quota, or timeout errors and try again.' } }}",
+        "options": {
+          "responseCode": 502
+        }
+      },
+      "id": "30000000-0000-4000-8000-000000000010",
+      "name": "Respond Copilot Unavailable",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        240,
+        240
+      ]
     }
   ],
   "pinData": {},
   "connections": {
-    "Policy Query Webhook": {"main": [[{"node": "Fetch All Policies", "type": "main", "index": 0}]]},
-    "Fetch All Policies": {"main": [[{"node": "Fetch All Terms", "type": "main", "index": 0}]]},
-    "Fetch All Terms": {"main": [[{"node": "Build Copilot Prompt", "type": "main", "index": 0}]]},
-    "Build Copilot Prompt": {"main": [[{"node": "Generate Answer", "type": "main", "index": 0}]]},
-    "Generate Answer": {"main": [[{"node": "Extract Answer", "type": "main", "index": 0}]]},
-    "Extract Answer": {"main": [[{"node": "Respond to Webhook", "type": "main", "index": 0}]]}
+    "Policy Query Webhook": {
+      "main": [
+        [
+          {
+            "node": "Fetch All Policies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch All Policies": {
+      "main": [
+        [
+          {
+            "node": "Fetch All Terms",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Copilot Unavailable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch All Terms": {
+      "main": [
+        [
+          {
+            "node": "Build Copilot Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Copilot Unavailable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Copilot Prompt": {
+      "main": [
+        [
+          {
+            "node": "Generate Answer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Answer": {
+      "main": [
+        [
+          {
+            "node": "Extract Answer",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Copilot Unavailable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Answer": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
   "active": false,
-  "settings": {"executionOrder": "v1", "errorWorkflow": "northstarGlobalErrorHandler"},
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "northstarGlobalErrorHandler"
+  },
   "versionId": "30000000-0000-4000-8000-000000000099",
-  "meta": {"templateCredsSetupCompleted": true},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
   "tags": []
 }

@@ -122,7 +122,13 @@ def test_http_transport_has_bounded_timeout_and_no_retry() -> None:
     assert http_nodes
     for http_node in http_nodes:
         response = http_node["parameters"]["options"]["response"]["response"]
-        assert http_node["parameters"]["options"]["timeout"] == 5000
+        expected_timeout = (
+            25000
+            if http_node["name"]
+            in {"Generate Answer", "Generate Briefing", "Generate Audit Report"}
+            else 5000
+        )
+        assert http_node["parameters"]["options"]["timeout"] == expected_timeout
         assert response["fullResponse"] is True
         assert response["responseFormat"] == "json"
         assert "neverError" in response
@@ -169,16 +175,7 @@ def test_no_unapproved_env_secrets_credentials_code_or_database_nodes() -> None:
         text = path.read_text(encoding="utf-8")
         workflow = json.loads(text)
         env_refs = set(re.findall(r"\$env\.([A-Z][A-Z0-9_]*)", text))
-        allowed = (
-            {"OPENAI_API_KEY", "OPENAI_API_BASE"}
-            if path.name in {
-                "25_executive_briefing_agent.json",
-                "30_policy_copilot.json",
-                "31_forensic_audit_agent.json",
-            }
-            else set()
-        )
-        assert env_refs <= allowed
+        assert env_refs == set()
         assert all("credentials" not in node for node in workflow["nodes"])
         assert forbidden_types.isdisjoint(
             {node["type"] for node in workflow["nodes"]}
@@ -267,7 +264,7 @@ def test_advisory_ai_workflows_preserve_deterministic_authority() -> None:
 
     serialized = " ".join(_serialized(filename) for filename in ai_files)
     assert "Do NOT recommend approval or rejection" in serialized
-    assert "Never approve or reject expenses" in serialized
+    assert "Never approve or reject expenses" in (PROJECT_DIR / "app/policy_copilot.py").read_text(encoding="utf-8")
     assert "Do NOT make financial recommendations" in serialized
     assert "/api/expenses/process" not in serialized
     assert "/decision" not in serialized
@@ -292,6 +289,10 @@ def test_executive_briefing_failure_degrades_to_notification_delivery() -> None:
     assert orchestrator["connections"]["Merge Briefing Into Notification"]["main"][0][0][
         "node"
     ] == "Send Initial Approval Notification"
+
+    notification = _serialized("21_approval_notification_service.json")
+    assert "executive_summary" in notification
+    assert "safe_summary" in notification
 
 
 @pytest.mark.skipif(

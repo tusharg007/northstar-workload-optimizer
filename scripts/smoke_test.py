@@ -56,7 +56,11 @@ def main() -> int:
     try:
         with httpx.Client(timeout=10.0) as client:
             health = request(client, "GET", f"{API_BASE_URL}/health").json()
-            if health != {"status": "ok", "service": "northstar"}:
+            if not (
+                health.get("status") == "ok"
+                and health.get("service") == "northstar"
+                and health.get("database") == "connected"
+            ):
                 raise RuntimeError(f"Unexpected health response: {health}")
 
             submitted = request(client, "POST", EXPENSE_WEBHOOK_URL, json=payload).json()
@@ -102,4 +106,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

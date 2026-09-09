@@ -303,7 +303,7 @@ export default function SystemHealth() {
               <div className="flex justify-between items-center">
                 <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Workflow Failures</h4>
                 <span className={`px-2 py-1 text-xs font-medium rounded-full ${workflowFailures.length > 0 ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400' : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'}`}>
-                  {workflowFailures.length} Open
+                  {workflowFailures.length} Recorded
                 </span>
               </div>
               {workflowFailures.length > 0 ? (
@@ -337,7 +337,7 @@ export default function SystemHealth() {
                   </table>
                 </div>
               ) : (
-                <p className="mt-2 text-sm italic text-gray-500 dark:text-gray-400">No open workflow failures.</p>
+                <p className="mt-2 text-sm italic text-gray-500 dark:text-gray-400">No workflow failures recorded.</p>
               )}
             </div>
           </div>

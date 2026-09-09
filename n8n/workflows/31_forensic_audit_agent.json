@@ -40,7 +40,7 @@
     },
     {
       "parameters": {
-        "url": "={{ 'http://127.0.0.1:8000/api/expenses/' + encodeURIComponent($json.expense_id) }}",
+        "url": "={{ 'http://api:8000/api/expenses/' + encodeURIComponent($json.expense_id) }}",
         "sendHeaders": true,
         "headerParameters": {"parameters": [
           {"name": "X-Correlation-ID", "value": "={{ $json.correlation_id }}"}
@@ -55,7 +55,7 @@
     },
     {
       "parameters": {
-        "url": "={{ 'http://127.0.0.1:8000/api/expenses/' + encodeURIComponent($('Fetch Expense').item.json.body.expense_id) + '/explanation' }}",
+        "url": "={{ 'http://api:8000/api/expenses/' + encodeURIComponent($('Fetch Expense').item.json.body.expense_id) + '/explanation' }}",
         "sendHeaders": true,
         "headerParameters": {"parameters": [
           {"name": "X-Correlation-ID", "value": "={{ $('Normalize Audit Input').item.json.correlation_id }}"}
@@ -70,7 +70,7 @@
     },
     {
       "parameters": {
-        "url": "={{ 'http://127.0.0.1:8000/api/expenses/' + encodeURIComponent($('Fetch Expense').item.json.body.expense_id) + '/lineage' }}",
+        "url": "={{ 'http://api:8000/api/expenses/' + encodeURIComponent($('Fetch Expense').item.json.body.expense_id) + '/lineage' }}",
         "sendHeaders": true,
         "headerParameters": {"parameters": [
           {"name": "X-Correlation-ID", "value": "={{ $('Normalize Audit Input').item.json.correlation_id }}"}
@@ -85,7 +85,7 @@
     },
     {
       "parameters": {
-        "url": "={{ 'http://127.0.0.1:8000/api/provenance/expenses/' + encodeURIComponent($('Fetch Expense').item.json.body.expense_id) }}",
+        "url": "={{ 'http://api:8000/api/provenance/expenses/' + encodeURIComponent($('Fetch Expense').item.json.body.expense_id) }}",
         "sendHeaders": true,
         "headerParameters": {"parameters": [
           {"name": "X-Correlation-ID", "value": "={{ $('Normalize Audit Input').item.json.correlation_id }}"}
@@ -104,7 +104,7 @@
           {"id": "31-expense", "name": "expense_id", "value": "={{ $('Fetch Expense').item.json.body.expense_id }}", "type": "string"},
           {"id": "31-correlation", "name": "correlation_id", "value": "={{ $('Normalize Audit Input').item.json.correlation_id }}", "type": "string"},
           {"id": "31-verified", "name": "provenance_verified", "value": "={{ $('Fetch Explanation').item.json.body?.evidence_verified === true }}", "type": "boolean"},
-          {"id": "31-prompt", "name": "prompt", "value": "={{ 'Expense Data:\n' + JSON.stringify($('Fetch Expense').item.json.body) + '\n\nRisk Explanation:\n' + JSON.stringify($('Fetch Explanation').item.json.body) + '\n\nEvent Timeline:\n' + JSON.stringify($('Fetch Lineage').item.json.body) + '\n\nDecision Provenance:\n' + JSON.stringify($('Fetch Provenance').item.json.body) }}", "type": "string"}
+          {"id": "31-prompt", "name": "prompt", "value": "={{ 'Expense Data: ' + JSON.stringify($('Fetch Expense').item.json.body).slice(0, 6000) + ' | Risk Explanation: ' + JSON.stringify($('Fetch Explanation').item.json.body).slice(0, 6000) + ' | Event Timeline: ' + JSON.stringify($('Fetch Lineage').item.json.body).slice(0, 6000) + ' | Decision Provenance: ' + JSON.stringify($('Fetch Provenance').item.json.body).slice(0, 6000) }}", "type": "string"}
         ]},
         "options": {}
       },
@@ -117,18 +117,17 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ ($env.OPENAI_API_BASE || 'https://api.openai.com').replace(/\\\/$/, '').replace(/\\\/v1$/, '') + '/v1/chat/completions' }}",
+        "url": "http://api:8000/api/internal/advisory-ai/generate",
         "sendHeaders": true,
         "headerParameters": {"parameters": [
-          {"name": "Authorization", "value": "={{ 'Bearer ' + $env.OPENAI_API_KEY }}"},
           {"name": "Content-Type", "value": "application/json"},
           {"name": "X-Correlation-ID", "value": "={{ $json.correlation_id }}"}
         ]},
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "={{ ({ model: 'gpt-4o-mini', messages: [{ role: 'system', content: 'You are a financial compliance auditor. Given expense data, risk analysis, event timeline, and cryptographic verification, produce a structured audit memorandum with sections: Executive Summary, Timeline of Events, Risk Assessment Review, Provenance Verification, and Conclusion. Do NOT make financial recommendations.' }, { role: 'user', content: $json.prompt }], max_tokens: 1200, temperature: 0.2 }) }}",
-        "options": {"timeout": 5000, "response": {"response": {"fullResponse": true, "neverError": false, "responseFormat": "json"}}}
+        "jsonBody": "={{ ({ system_prompt: 'You are a financial compliance auditor. Produce a concise advisory memorandum under 350 words with all five headings: Executive Summary, Timeline of Events, Risk Assessment Review, Provenance Verification, and Conclusion. Use short paragraphs, no tables. Evidence sections may be truncated; state limitations and never invent missing facts. Distinguish the assigned approver role from the actual decided_by identity. Weekdays use Monday=0 and Saturday=5. Report only supplied verification results; you do not independently verify hashes. Do NOT make financial recommendations.', prompt: $json.prompt, max_tokens: 1600, temperature: 0.2 }) }}",
+        "options": {"timeout": 25000, "response": {"response": {"fullResponse": true, "neverError": true, "responseFormat": "json"}}}
       },
       "id": "31000000-0000-4000-8000-000000000008",
       "name": "Generate Audit Report",
@@ -139,9 +138,10 @@
     {
       "parameters": {
         "assignments": {"assignments": [
-          {"id": "31-report", "name": "audit_report", "value": "={{ $json.body?.choices?.[0]?.message?.content || '' }}", "type": "string"},
+          {"id": "31-report", "name": "audit_report", "value": "={{ $json.body?.text || '' }}", "type": "string"},
           {"id": "31-report-expense", "name": "expense_id", "value": "={{ $('Build Audit Prompt').item.json.expense_id }}", "type": "string"},
-          {"id": "31-report-verified", "name": "provenance_verified", "value": "={{ $('Build Audit Prompt').item.json.provenance_verified }}", "type": "boolean"}
+          {"id": "31-report-verified", "name": "provenance_verified", "value": "={{ $('Build Audit Prompt').item.json.provenance_verified }}", "type": "boolean"},
+          {"id": "31-report-message", "name": "message", "value": "={{ $json.body?.detail || '' }}", "type": "string"}
         ]},
         "options": {}
       },
@@ -156,7 +156,8 @@
         "assignments": {"assignments": [
           {"id": "31-return-expense", "name": "expense_id", "value": "={{ $json.expense_id }}", "type": "string"},
           {"id": "31-return-report", "name": "audit_report", "value": "={{ $json.audit_report }}", "type": "string"},
-          {"id": "31-return-verified", "name": "provenance_verified", "value": "={{ $json.provenance_verified }}", "type": "boolean"}
+          {"id": "31-return-verified", "name": "provenance_verified", "value": "={{ $json.provenance_verified }}", "type": "boolean"},
+          {"id": "31-return-message", "name": "message", "value": "={{ $json.message }}", "type": "string"}
         ]},
         "options": {}
       },

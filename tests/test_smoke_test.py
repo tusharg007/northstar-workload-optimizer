@@ -11,7 +11,7 @@ def test_smoke_test_fails_clearly_when_n8n_is_unavailable(
     monkeypatch, capsys
 ) -> None:
     health = Mock()
-    health.json.return_value = {"status": "ok", "service": "northstar"}
+    health.json.return_value = {"status": "ok", "service": "northstar", "database": "connected"}
 
     def fake_request(client, method, url, **kwargs):
         if url.endswith("/health"):

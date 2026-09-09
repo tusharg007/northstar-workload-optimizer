@@ -54,7 +54,7 @@ export default function SubmitExpense() {
   };
 
   const loadPreset = (preset: 'coffee' | 'travel' | 'suspicious' | 'invalid') => {
-    const randomSuffix = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+    const randomSuffix = crypto.randomUUID();
     let data: ExpenseSubmission;
     const today = new Date();
 
@@ -75,8 +75,8 @@ export default function SubmitExpense() {
       };
     } else if (preset === 'travel') {
       const weekdayDate = new Date();
-      if (weekdayDate.getDay() === 0 || weekdayDate.getDay() === 6) {
-        weekdayDate.setDate(weekdayDate.getDate() - (weekdayDate.getDay() === 0 ? 2 : 1));
+      if (weekdayDate.getUTCDay() === 0 || weekdayDate.getUTCDay() === 6) {
+        weekdayDate.setUTCDate(weekdayDate.getUTCDate() - (weekdayDate.getUTCDay() === 0 ? 2 : 1));
       }
       data = {
         expense_id: `DEMO-TRAVEL-${randomSuffix}`,
@@ -94,7 +94,7 @@ export default function SubmitExpense() {
       };
     } else if (preset === 'suspicious') {
       const sat = new Date();
-      sat.setDate(sat.getDate() - ((sat.getDay() + 1) % 7));
+      sat.setUTCDate(sat.getUTCDate() - ((sat.getUTCDay() + 1) % 7));
       data = {
         expense_id: `DEMO-SUSPICIOUS-${randomSuffix}`,
         employee_id: 'EMP-042',
@@ -111,7 +111,7 @@ export default function SubmitExpense() {
       };
     } else {
       const future = new Date();
-      future.setDate(future.getDate() + 30);
+      future.setUTCDate(future.getUTCDate() + 30);
       data = {
         expense_id: `DEMO-INVALID-${randomSuffix}`,
         employee_id: 'EMP-099',
@@ -164,7 +164,7 @@ export default function SubmitExpense() {
           'X-Correlation-ID': `northstar-policy-ui-${Date.now()}`,
         },
         body: JSON.stringify({ query }),
-        signal: AbortSignal.timeout(15_000),
+        signal: AbortSignal.timeout(30_000),
       });
       const body = await response.json().catch(() => null) as { answer?: string; message?: string } | null;
       if (!response.ok) {

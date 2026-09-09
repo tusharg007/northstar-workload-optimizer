@@ -43,6 +43,16 @@ def test_router_without_api_key_signals_mock_fallback(monkeypatch) -> None:
     assert router.dispatch(notification()) is None
 
 
+def test_advisory_briefing_reaches_email_and_is_html_escaped():
+    router = NotificationRouter()
+    payload = notification()
+    payload["safe_summary"]["executive_summary"] = "Review <script>alert(1)</script> carefully."
+    _, html = router.render_template("APPROVAL_REQUEST", router._template_context(payload))
+    assert "AI advisory briefing" in html
+    assert "&lt;script&gt;" in html
+    assert "<script>" not in html
+
+
 def test_directory_override_and_unknown_role_fallback(monkeypatch) -> None:
     monkeypatch.setenv(
         "NOTIFICATION_DIRECTORY",

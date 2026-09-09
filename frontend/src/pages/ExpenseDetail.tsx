@@ -120,7 +120,7 @@ export default function ExpenseDetail() {
         throw new Error(body?.message || `Audit workflow failed with HTTP ${response.status}`);
       }
       if (!body?.audit_report) {
-        throw new Error('Audit workflow returned an empty report');
+        throw new Error(body?.message || 'Audit workflow returned an empty report');
       }
       setAuditReport(body.audit_report);
     } catch (err: any) {
@@ -385,7 +385,7 @@ function OverviewTab({ id, expense }: { id: string, expense: ExpenseState }) {
         {anomaly ? (
           <div className="space-y-4">
             <div className="flex items-center gap-4">
-              <div className="w-32 text-sm text-gray-500 dark:text-gray-400 font-medium">Risk Score</div>
+              <div className="w-32 text-sm text-gray-500 dark:text-gray-400 font-medium">Classification Confidence</div>
               <div className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                 <div
                   className={cn(

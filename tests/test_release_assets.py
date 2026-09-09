@@ -64,16 +64,7 @@ def test_n8n_workflows_need_no_credentials_or_unapproved_env_access() -> None:
         env_refs = set(
             re.findall(r"\$env\.([A-Z][A-Z0-9_]*)", json.dumps(workflow))
         )
-        allowed = (
-            {"OPENAI_API_KEY", "OPENAI_API_BASE"}
-            if path.name in {
-                "25_executive_briefing_agent.json",
-                "30_policy_copilot.json",
-                "31_forensic_audit_agent.json",
-            }
-            else set()
-        )
-        assert env_refs <= allowed
+        assert env_refs == set()
 
 
 def test_operational_and_analytical_databases_are_isolated() -> None:

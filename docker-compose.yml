@@ -28,8 +28,6 @@ x-n8n-environment: &n8n-environment
   N8N_RUNNERS_ENABLED: "true"
   N8N_RUNNERS_BROKER_PORT: 5680
   N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: "true"
-  OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-  OPENAI_API_BASE: ${OPENAI_API_BASE:-https://api.openai.com}
   GENERIC_TIMEZONE: UTC
   TZ: UTC
 
@@ -99,6 +97,9 @@ services:
     <<: *app-image
     restart: unless-stopped
     environment:
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_API_BASE: ${GROQ_API_BASE:-https://api.groq.com/openai/v1}
+      GROQ_MODEL: ${GROQ_MODEL:-openai/gpt-oss-20b}
       NORTHSTAR_DATABASE_URL: postgresql+psycopg://${NORTHSTAR_APP_DB_USER:-northstar_app}:${NORTHSTAR_APP_DB_PASSWORD:?set NORTHSTAR_APP_DB_PASSWORD in .env}@postgres:5432/northstar
       NORTHSTAR_OUTBOX_RETRY_SECONDS: ${NORTHSTAR_OUTBOX_RETRY_SECONDS:-0,15,60,300}
       NORTHSTAR_OUTBOX_MAX_ATTEMPTS: ${NORTHSTAR_OUTBOX_MAX_ATTEMPTS:-4}

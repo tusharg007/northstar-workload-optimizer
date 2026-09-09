@@ -30,6 +30,12 @@ from app.db.repositories import (
 )
 from app.db.session import DEFAULT_DATABASE_URL
 from app.runtime_store import RuntimeStore
+from app.policy_copilot import (
+    AdvisoryGenerationRequest,
+    PolicyQuestion,
+    answer_policy_question,
+    generate_advisory_text,
+)
 from app.context.exceptions import ContextConflictError, ContextNotFoundError
 from app.context.exceptions import ContextSafetyError
 from app.provenance.models import ExpenseLineageView, ProvenanceTraceView, ProvenanceVerificationView, ProvenanceView
@@ -225,6 +231,14 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
     @application.get("/api/context/policies", response_model=list[PolicySummary])
     def list_context_policies() -> list[dict]:
         return store.context.list_policies()
+
+    @application.post("/api/internal/policy-copilot/answer")
+    def policy_copilot_answer(question: PolicyQuestion) -> dict:
+        return context_call(lambda: answer_policy_question(question.query, store.context))
+
+    @application.post("/api/internal/advisory-ai/generate")
+    def advisory_ai_generate(request: AdvisoryGenerationRequest) -> dict:
+        return generate_advisory_text(request)
 
     @application.get("/api/context/policies/{policy_key}", response_model=PolicySummary)
     def get_context_policy(policy_key: str) -> dict:

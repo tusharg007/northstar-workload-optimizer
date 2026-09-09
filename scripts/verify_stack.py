@@ -20,7 +20,26 @@ if str(ROOT) not in sys.path:
 EXPECTED_WORKFLOWS = 13
 EXPECTED_QUESTIONS = 36
 EXPECTED_DASHBOARDS = 5
-EXPECTED_ALEMBIC_HEAD = "20260813_0006"
+
+
+def expected_alembic_head() -> str:
+    from alembic.config import Config
+    from alembic.script import ScriptDirectory
+
+    config = Config(str(ROOT / "alembic.ini"))
+    config.set_main_option("script_location", str(ROOT / "alembic"))
+    head = ScriptDirectory.from_config(config).get_current_head()
+    require(head is not None, "repository has no Alembic head")
+    return head
+
+
+def validate_api_health(health: dict) -> None:
+    require(
+        health.get("status") == "ok"
+        and health.get("service") == "northstar"
+        and health.get("database") == "connected",
+        f"unexpected API health: {health}",
+    )
 
 
 def load_dotenv() -> None:
@@ -139,7 +158,8 @@ def database_contract() -> str:
     )
     try:
         revision = northstar.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-        require(revision == EXPECTED_ALEMBIC_HEAD, f"expected Alembic {EXPECTED_ALEMBIC_HEAD}, found {revision}")
+        expected = expected_alembic_head()
+        require(revision == expected, f"expected Alembic {expected}, found {revision}")
         return revision
     finally:
         northstar.close()
@@ -211,7 +231,7 @@ def main() -> int:
         require(password != "", "METABASE_ADMIN_PASSWORD is required for inventory verification")
         with httpx.Client(timeout=20) as client:
             health = wait_json(client, f"{api}/health", args.wait_seconds)
-            require(health == {"status": "ok", "service": "northstar"}, f"unexpected API health: {health}")
+            validate_api_health(health)
             print("PASS: API health", flush=True)
             readiness = wait_json(client, f"{n8n}/healthz/readiness", args.wait_seconds)
             require(readiness.get("status") == "ok", f"unexpected n8n readiness: {readiness}")
