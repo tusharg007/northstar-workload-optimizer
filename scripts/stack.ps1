@@ -32,8 +32,27 @@ Push-Location $repo
 try {
     switch ($Action) {
         "up" {
-            & $dockerExe compose -p $Project up --build -d --wait
+            # Start the long-running dependencies first. Compose --wait treats
+            # successful one-shot bootstrap containers as a failed project, so
+            # those jobs are run separately below.
+            & $dockerExe compose -p $Project up --build -d postgres api notification-sink metabase
             if ($LASTEXITCODE -ne 0) { throw "docker compose up failed" }
+            & $dockerExe compose -p $Project up -d --wait api notification-sink metabase
+            if ($LASTEXITCODE -ne 0) { throw "stack dependencies did not become ready" }
+
+            # The importer writes workflow definitions to n8n's database while
+            # n8n is stopped. Importing against a live process can leave only a
+            # subset of workflows published in n8n's in-memory registry.
+            & $dockerExe compose -p $Project stop n8n frontend
+            if ($LASTEXITCODE -ne 0) { throw "n8n workflow bootstrap failed" }
+            & $dockerExe compose -p $Project up --no-deps --force-recreate n8n-bootstrap
+            if ($LASTEXITCODE -ne 0) { throw "n8n workflow bootstrap failed" }
+            & $dockerExe compose -p $Project up -d --no-deps --force-recreate --wait n8n
+            if ($LASTEXITCODE -ne 0) { throw "n8n did not become ready after workflow bootstrap" }
+            & $dockerExe compose -p $Project up --no-deps --force-recreate metabase-bootstrap
+            if ($LASTEXITCODE -ne 0) { throw "Metabase bootstrap failed" }
+            & $dockerExe compose -p $Project up -d --no-deps --wait frontend
+            if ($LASTEXITCODE -ne 0) { throw "frontend did not become ready" }
             & $python scripts\verify_stack.py --project $Project --no-smoke
             if ($LASTEXITCODE -ne 0) { throw "stack readiness verification failed" }
         }
