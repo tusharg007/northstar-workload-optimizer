@@ -155,7 +155,7 @@ services:
     restart: unless-stopped
     environment:
       <<: *n8n-environment
-      A1_SLACK_WEBHOOK_URL: ${A1_SLACK_WEBHOOK_URL:?set A1_SLACK_WEBHOOK_URL in .env}
+      A1_SLACK_WEBHOOK_URL: ${A1_SLACK_WEBHOOK_URL:-}
       N8N_CONCURRENCY_PRODUCTION_LIMIT: "1"
       N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"
     depends_on:

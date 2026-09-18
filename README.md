@@ -320,7 +320,7 @@ NOTIFICATION_FROM_EMAIL=expenses@yourdomain.com
 # Add for Slack notifications
 SLACK_WEBHOOK_URL=https://hooks.slack.com/services/T.../B.../xxx
 
-# Required by the n8n AI demo workflow (use the same webhook if desired)
+# Optional n8n AI demo workflow webhook (use the same webhook if desired)
 A1_SLACK_WEBHOOK_URL=https://hooks.slack.com/services/T.../B.../xxx
 
 # Add for AI sub-agents (create a key at https://console.groq.com/keys)
