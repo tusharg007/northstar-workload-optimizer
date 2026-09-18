@@ -320,6 +320,9 @@ NOTIFICATION_FROM_EMAIL=expenses@yourdomain.com
 # Add for Slack notifications
 SLACK_WEBHOOK_URL=https://hooks.slack.com/services/T.../B.../xxx
 
+# Required by the n8n AI demo workflow (use the same webhook if desired)
+A1_SLACK_WEBHOOK_URL=https://hooks.slack.com/services/T.../B.../xxx
+
 # Add for AI sub-agents (create a key at https://console.groq.com/keys)
 GROQ_API_KEY=gsk_...
 ```
@@ -453,6 +456,12 @@ n8n Workflow 21 → POST /notifications → Notification Router
 - `approval_completed.html` — Decision summary with reviewer details
 - `sla_reminder.html` — Urgency notice with time remaining
 - `sla_escalation.html` — Escalation alert with new reviewer role
+
+### Provider setup notes
+
+- Slack Incoming Webhooks are sufficient for the local demo and do not require a paid Slack plan. Create a webhook for the target channel and set both `SLACK_WEBHOOK_URL` (notification sink) and `A1_SLACK_WEBHOOK_URL` (n8n AI demo workflow) when you want both paths enabled.
+- Resend's test sender `onboarding@resend.dev` is suitable for a demo, but Resend restricts test-mode delivery to the account owner's verified email. Set `NOTIFICATION_DIRECTORY` to that address, for example `{"Finance Director":"you@example.com"}`, and inspect the **Sending/Logs** view (the **Receiving** view is for inbound mail). For delivery to arbitrary recipients, verify a domain in Resend and use a sender on that domain.
+- If either provider is not configured, the notification sink remains safe: Slack is used only for HIGH/CRITICAL risk, email is used when Resend is configured, and otherwise the event is retained through the mock path.
 
 ---
 

@@ -153,7 +153,11 @@ services:
   n8n:
     image: n8nio/n8n:2.22.6
     restart: unless-stopped
-    environment: *n8n-environment
+    environment:
+      <<: *n8n-environment
+      A1_SLACK_WEBHOOK_URL: ${A1_SLACK_WEBHOOK_URL:?set A1_SLACK_WEBHOOK_URL in .env}
+      N8N_CONCURRENCY_PRODUCTION_LIMIT: "1"
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"
     depends_on:
       n8n-bootstrap:
         condition: service_completed_successfully
